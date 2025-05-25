@@ -43,6 +43,12 @@ temp/
 ProxyMaster-*.zip
 release/
 
+# Development documentation (not for GitHub)
+PUBLISH_CHECKLIST.md
+RELEASE_CHECKLIST.md
+STORE_LISTING.md
+GITHUB_RELEASE_*.md
+
 # Project finder tools (separate project)
 project_finder*.py
 PROJECT_FINDER_README.md
