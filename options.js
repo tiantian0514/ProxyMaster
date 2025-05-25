@@ -4,6 +4,8 @@ class OptionsManager {
     this.profiles = {};
     this.currentProfile = null;
     this.rules = [];
+    this.editingProfile = null;
+    this.editingRuleIndex = null;
     this.init();
   }
 
@@ -341,8 +343,8 @@ class OptionsManager {
       return;
     }
 
-    // 检查配置名称是否已存在
-    if (this.profiles[name]) {
+    // 检查配置名称是否已存在（编辑模式下跳过此检查）
+    if (!this.editingProfile && this.profiles[name]) {
       this.showToast('配置名称已存在，请使用其他名称', 'error');
       return;
     }
@@ -372,7 +374,14 @@ class OptionsManager {
         this.profiles[profile.name] = profile;
         this.renderProfiles();
         this.closeModal('addProfileModal');
-        this.showToast('配置保存成功', 'success');
+        
+        const action = this.editingProfile ? '更新' : '保存';
+        this.showToast(`配置${action}成功`, 'success');
+        
+        // 重置编辑模式
+        this.editingProfile = null;
+        document.getElementById('profileName').disabled = false;
+        
         document.getElementById('profileForm').reset();
       } else {
         this.showToast(response?.error || '保存失败', 'error');
@@ -632,10 +641,29 @@ class OptionsManager {
   }
 
   showAddProfileModal() {
+    // 重置编辑模式
+    this.editingProfile = null;
+    
+    // 启用配置名称输入框
+    document.getElementById('profileName').disabled = false;
+    
+    // 恢复模态框标题
+    document.querySelector('#addProfileModal .modal-header h3').textContent = '新建代理配置';
+    
+    // 显示模态框
     document.getElementById('addProfileModal').classList.add('show');
+    
+    // 重置表单
+    document.getElementById('profileForm').reset();
   }
 
   showAddRuleModal() {
+    // 重置编辑模式
+    this.editingRuleIndex = null;
+    
+    // 恢复模态框标题
+    document.querySelector('#addRuleModal .modal-header h3').textContent = '新建自动切换规则';
+    
     // 更新代理配置选项
     this.updateRuleProfileOptions();
     // 显示模态框
@@ -653,13 +681,63 @@ class OptionsManager {
   }
 
   editProfile(profileName) {
-    // 这里可以添加编辑配置的逻辑
-    this.showToast('编辑功能正在开发中', 'info');
+    const profile = this.profiles[profileName];
+    if (!profile) {
+      this.showToast('配置不存在', 'error');
+      return;
+    }
+
+    // 填充表单数据
+    document.getElementById('profileName').value = profileName;
+    document.getElementById('profileDisplayName').value = profile.displayName || '';
+    document.getElementById('profileProtocol').value = profile.protocol || 'http';
+    document.getElementById('profileHost').value = profile.host || '';
+    document.getElementById('profilePort').value = profile.port || '';
+    document.getElementById('profileUsername').value = profile.auth?.username || '';
+    document.getElementById('profilePassword').value = profile.auth?.password || '';
+
+    // 设置编辑模式
+    this.editingProfile = profileName;
+    
+    // 禁用配置名称输入框（编辑时不允许修改名称）
+    document.getElementById('profileName').disabled = true;
+    
+    // 更改模态框标题
+    document.querySelector('#addProfileModal .modal-header h3').textContent = '编辑代理配置';
+    
+    // 显示模态框
+    document.getElementById('addProfileModal').classList.add('show');
   }
 
   editRule(index) {
-    // 这里可以添加编辑规则的逻辑
-    this.showToast('编辑功能正在开发中', 'info');
+    const rule = this.rules[index];
+    if (!rule) {
+      this.showToast('规则不存在', 'error');
+      return;
+    }
+
+    // 填充表单数据
+    document.getElementById('ruleName').value = rule.name || '';
+    document.getElementById('ruleType').value = rule.type || 'domain';
+    document.getElementById('rulePattern').value = rule.pattern || '';
+    document.getElementById('ruleProfile').value = rule.profile || '';
+    document.getElementById('rulePriority').value = rule.priority || 100;
+    document.getElementById('ruleEnabled').checked = rule.enabled !== false;
+
+    // 设置编辑模式
+    this.editingRuleIndex = index;
+    
+    // 更新代理配置选项
+    this.updateRuleProfileOptions();
+    
+    // 更新帮助文本
+    this.updatePatternHelp(rule.type || 'domain');
+    
+    // 更改模态框标题
+    document.querySelector('#addRuleModal .modal-header h3').textContent = '编辑自动切换规则';
+    
+    // 显示模态框
+    document.getElementById('addRuleModal').classList.add('show');
   }
 
   updateRuleProfileOptions() {
@@ -756,8 +834,13 @@ class OptionsManager {
     try {
       console.log('Saving rule:', rule);
       
-      // 添加到规则列表
-      this.rules.push(rule);
+      if (this.editingRuleIndex !== null) {
+        // 编辑模式：更新现有规则
+        this.rules[this.editingRuleIndex] = rule;
+      } else {
+        // 新建模式：添加到规则列表
+        this.rules.push(rule);
+      }
       
       // 按优先级排序
       this.rules.sort((a, b) => b.priority - a.priority);
@@ -773,7 +856,13 @@ class OptionsManager {
 
       this.renderRules();
       this.closeModal('addRuleModal');
-      this.showToast('规则保存成功', 'success');
+      
+      const action = this.editingRuleIndex !== null ? '更新' : '保存';
+      this.showToast(`规则${action}成功`, 'success');
+      
+      // 重置编辑模式
+      this.editingRuleIndex = null;
+      
       document.getElementById('ruleForm').reset();
     } catch (error) {
       console.error('Failed to save rule:', error);

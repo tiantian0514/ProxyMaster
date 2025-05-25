@@ -78,16 +78,19 @@ class ProxyManager {
   }
 
   setupContextMenus() {
-    chrome.contextMenus.create({
-      id: 'proxymaster-quick-switch',
-      title: '快速切换代理',
-      contexts: ['page']
-    });
+    // 先清除所有现有的右键菜单项，避免重复创建
+    chrome.contextMenus.removeAll(() => {
+      chrome.contextMenus.create({
+        id: 'proxymaster-quick-switch',
+        title: '快速切换代理',
+        contexts: ['page']
+      });
 
-    chrome.contextMenus.create({
-      id: 'proxymaster-add-rule',
-      title: '为此网站添加规则',
-      contexts: ['page']
+      chrome.contextMenus.create({
+        id: 'proxymaster-add-rule',
+        title: '为此网站添加规则',
+        contexts: ['page']
+      });
     });
 
     chrome.contextMenus.onClicked.addListener((info, tab) => {
