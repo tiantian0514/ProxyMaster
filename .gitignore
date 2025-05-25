@@ -39,8 +39,25 @@ temp/
 *.crx
 *.pem
 
-# Release files (keep the zip for releases)
-# ProxyMaster-*.zip
+# Release files
+ProxyMaster-*.zip
+release/
+
+# Project finder tools (separate project)
+project_finder*.py
+PROJECT_FINDER_README.md
+install*.sh
+pip.conf
+requirements.txt
+venv/
+.venv/
+使用指南.md
+快速开始.md
+*.csv
+test_report.csv
+
+# Debug files
+debug.html
 
 # Screenshots folder (will be populated later)
 screenshots/.DS_Store 

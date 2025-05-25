@@ -27,7 +27,19 @@ class ProxyManager {
     if (result.profiles) {
       this.profiles = new Map(Object.entries(result.profiles));
     }
+    
+    // 确保直连配置存在
+    if (!this.profiles.has('direct')) {
+      this.profiles.set('direct', {
+        name: 'direct',
+        displayName: '直接连接',
+        type: 'direct'
+      });
+    }
+    
     this.currentProfile = result.currentProfile || 'direct';
+    console.log('Loaded profiles:', Array.from(this.profiles.keys()));
+    console.log('Current profile:', this.currentProfile);
   }
 
   async saveProfiles() {
@@ -148,43 +160,79 @@ class ProxyManager {
   }
 
   async switchToProfile(profileName) {
-    const profile = this.profiles.get(profileName);
-    if (!profile) {
-      console.error(`Profile ${profileName} not found`);
-      return;
+    console.log(`Switching to profile: ${profileName}`);
+    
+    // 对于直连模式，不需要检查profile是否存在
+    if (profileName !== 'direct') {
+      const profile = this.profiles.get(profileName);
+      if (!profile) {
+        console.error(`Profile ${profileName} not found`);
+        return false;
+      }
     }
 
-    this.currentProfile = profileName;
-    
-    if (profileName === 'direct') {
-      // 直连模式
-      await chrome.proxy.settings.clear({});
-    } else {
-      // 代理模式
-      const config = {
-        mode: 'fixed_servers',
-        rules: {
-          singleProxy: {
-            scheme: profile.protocol,
-            host: profile.host,
-            port: profile.port
+    try {
+      this.currentProfile = profileName;
+      
+      if (profileName === 'direct') {
+        // 直连模式 - 清除所有代理设置
+        console.log('Clearing proxy settings for direct connection');
+        await chrome.proxy.settings.clear({
+          scope: 'regular'
+        });
+        
+        // 额外确保清除代理
+        await chrome.proxy.settings.set({
+          value: { mode: 'direct' },
+          scope: 'regular'
+        });
+        
+        console.log('Direct connection activated');
+      } else {
+        // 代理模式
+        const profile = this.profiles.get(profileName);
+        console.log('Setting proxy config:', profile);
+        
+        const config = {
+          mode: 'fixed_servers',
+          rules: {
+            singleProxy: {
+              scheme: profile.protocol,
+              host: profile.host,
+              port: profile.port
+            }
           }
-        }
-      };
+        };
 
-      if (profile.auth) {
-        // 处理代理认证
-        this.setupProxyAuth(profile.auth);
+        if (profile.auth) {
+          // 处理代理认证
+          this.setupProxyAuth(profile.auth);
+        }
+
+        await chrome.proxy.settings.set({
+          value: config,
+          scope: 'regular'
+        });
+        
+        console.log('Proxy connection activated');
       }
 
-      await chrome.proxy.settings.set({
-        value: config,
-        scope: 'regular'
+      await this.saveProfiles();
+      this.updateBadge(profileName);
+      
+      // 发送通知给popup更新状态
+      chrome.runtime.sendMessage({
+        action: 'profileSwitched',
+        profileName: profileName
+      }).catch(() => {
+        // 忽略错误，popup可能没有打开
       });
+      
+      return true;
+    } catch (error) {
+      console.error('Error switching profile:', error);
+      return false;
     }
-
-    await this.saveProfiles();
-    this.updateBadge(profileName);
   }
 
   setupProxyAuth(auth) {
@@ -234,8 +282,11 @@ class ProxyManager {
           break;
           
         case 'switchProfile':
-          await this.switchToProfile(message.profileName);
-          sendResponse({ success: true });
+          const success = await this.switchToProfile(message.profileName);
+          sendResponse({ 
+            success: success,
+            currentProfile: this.currentProfile 
+          });
           break;
           
         case 'addProfile':

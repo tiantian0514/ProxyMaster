@@ -20,14 +20,15 @@ class PopupManager {
       this.profiles = response.profiles || {};
       this.currentProfile = response.currentProfile || 'direct';
       
-      // 添加默认的直连配置
-      if (!this.profiles.direct) {
-        this.profiles.direct = {
-          name: 'direct',
-          displayName: '直接连接',
-          type: 'direct'
-        };
-      }
+      // 确保直连配置存在
+      this.profiles.direct = {
+        name: 'direct',
+        displayName: '直接连接',
+        type: 'direct'
+      };
+      
+      console.log('Loaded profiles:', Object.keys(this.profiles));
+      console.log('Current profile:', this.currentProfile);
     } catch (error) {
       console.error('Failed to load profiles:', error);
       this.showError('加载配置失败');
@@ -39,6 +40,11 @@ class PopupManager {
     document.getElementById('addProfileBtn').addEventListener('click', () => {
       chrome.tabs.create({ url: 'options.html#new-profile' });
       window.close();
+    });
+
+    // 测试代理按钮
+    document.getElementById('testProxyBtn').addEventListener('click', () => {
+      this.testCurrentProxy();
     });
 
     // 智能切换按钮
@@ -55,13 +61,21 @@ class PopupManager {
 
     // 帮助按钮
     document.getElementById('helpBtn').addEventListener('click', () => {
-      chrome.tabs.create({ url: 'https://github.com/your-username/proxymaster/wiki' });
+      chrome.tabs.create({ url: 'https://github.com/tiantian0514/ProxyMaster/wiki' });
       window.close();
     });
 
     // 关于按钮
     document.getElementById('aboutBtn').addEventListener('click', () => {
       this.showAbout();
+    });
+
+    // 监听来自background的消息
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.action === 'profileSwitched') {
+        this.currentProfile = message.profileName;
+        this.renderProfiles();
+      }
     });
   }
 
@@ -133,8 +147,36 @@ class PopupManager {
     return '配置不完整';
   }
 
+  async testCurrentProxy() {
+    try {
+      this.showLoading();
+      
+      // 测试连接
+      const testUrl = 'https://httpbin.org/ip';
+      const response = await fetch(testUrl, {
+        method: 'GET',
+        timeout: 5000
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        this.showSuccess(`连接测试成功 - IP: ${data.origin}`);
+      } else {
+        this.showError('连接测试失败');
+      }
+    } catch (error) {
+      console.error('Proxy test failed:', error);
+      this.showError('连接测试失败: ' + error.message);
+    } finally {
+      this.hideLoading();
+    }
+  }
+
   async switchProfile(profileName) {
+    console.log(`Attempting to switch to profile: ${profileName}`);
+    
     if (profileName === this.currentProfile) {
+      console.log('Already using this profile');
       return;
     }
 
@@ -146,18 +188,52 @@ class PopupManager {
         profileName: profileName
       });
 
-      if (response.success) {
-        this.currentProfile = profileName;
+      console.log('Switch response:', response);
+
+      if (response && response.success) {
+        this.currentProfile = response.currentProfile || profileName;
         this.renderProfiles();
-        this.showSuccess(`已切换到: ${this.profiles[profileName]?.displayName || profileName}`);
+        
+        const displayName = profileName === 'direct' ? '直接连接' : 
+          (this.profiles[profileName]?.displayName || profileName);
+        this.showSuccess(`已切换到: ${displayName}`);
+        
+        // 更新切换计数
+        await this.incrementSwitchCount();
       } else {
-        this.showError('切换失败');
+        this.showError('切换失败: ' + (response?.error || '未知错误'));
       }
     } catch (error) {
       console.error('Failed to switch profile:', error);
-      this.showError('切换失败');
+      this.showError('切换失败: ' + error.message);
     } finally {
       this.hideLoading();
+    }
+  }
+
+  async incrementSwitchCount() {
+    try {
+      const result = await chrome.storage.local.get(['dailySwitchCount', 'lastResetDate']);
+      const today = new Date().toDateString();
+      
+      let switchCount = result.dailySwitchCount || 0;
+      
+      if (result.lastResetDate !== today) {
+        switchCount = 1;
+        await chrome.storage.local.set({
+          dailySwitchCount: switchCount,
+          lastResetDate: today
+        });
+      } else {
+        switchCount++;
+        await chrome.storage.local.set({
+          dailySwitchCount: switchCount
+        });
+      }
+      
+      document.getElementById('switchCount').textContent = this.formatNumber(switchCount);
+    } catch (error) {
+      console.error('Failed to update switch count:', error);
     }
   }
 
