@@ -467,11 +467,13 @@ class OptionsManager {
       const result = await chrome.storage.sync.get([
         'enableNotifications',
         'enableAutoSwitch',
+        'enableAutoFallback',
         'enablePerformanceMonitoring'
       ]);
 
       document.getElementById('enableNotifications').checked = result.enableNotifications !== false;
       document.getElementById('enableAutoSwitch').checked = result.enableAutoSwitch !== false;
+      document.getElementById('enableAutoFallback').checked = result.enableAutoFallback !== false;
       document.getElementById('enablePerformanceMonitoring').checked = result.enablePerformanceMonitoring !== false;
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -482,6 +484,7 @@ class OptionsManager {
     const settings = {
       enableNotifications: document.getElementById('enableNotifications').checked,
       enableAutoSwitch: document.getElementById('enableAutoSwitch').checked,
+      enableAutoFallback: document.getElementById('enableAutoFallback').checked,
       enablePerformanceMonitoring: document.getElementById('enablePerformanceMonitoring').checked
     };
 
@@ -494,13 +497,41 @@ class OptionsManager {
     }
   }
 
-  exportData() {
+  async exportData() {
     try {
+      // 获取当前设置
+      const settings = await chrome.storage.sync.get([
+        'enableNotifications',
+        'enableAutoSwitch', 
+        'enableAutoFallback',
+        'enablePerformanceMonitoring'
+      ]);
+
       const data = {
+        // 基本信息
+        version: '1.0.3',
+        exportTime: new Date().toISOString(),
+        
+        // 代理配置
         profiles: this.profiles,
-        rules: this.rules,
-        version: '1.0.0',
-        exportTime: new Date().toISOString()
+        
+        // 自动切换规则
+        autoSwitchRules: this.rules,
+        
+        // 扩展设置
+        settings: {
+          enableNotifications: settings.enableNotifications !== false,
+          enableAutoSwitch: settings.enableAutoSwitch !== false,
+          enableAutoFallback: settings.enableAutoFallback !== false,
+          enablePerformanceMonitoring: settings.enablePerformanceMonitoring !== false
+        },
+        
+        // 统计信息
+        statistics: {
+          profileCount: Object.keys(this.profiles).length,
+          ruleCount: this.rules.length,
+          enabledRuleCount: this.rules.filter(rule => rule.enabled).length
+        }
       };
 
       console.log('Exporting data:', data);
@@ -520,7 +551,7 @@ class OptionsManager {
       
       URL.revokeObjectURL(url);
 
-      this.showToast('配置导出成功', 'success');
+      this.showToast(`配置导出成功 - ${data.statistics.profileCount}个配置, ${data.statistics.ruleCount}个规则`, 'success');
     } catch (error) {
       console.error('Export failed:', error);
       this.showToast('导出失败: ' + error.message, 'error');
@@ -558,7 +589,9 @@ class OptionsManager {
 
             let importedProfiles = 0;
             let importedRules = 0;
+            let importedSettings = false;
 
+            // 导入代理配置
             if (data.profiles && typeof data.profiles === 'object') {
               // 合并配置，避免覆盖现有配置
               Object.entries(data.profiles).forEach(([name, profile]) => {
@@ -569,14 +602,23 @@ class OptionsManager {
               });
             }
             
-            if (data.rules && Array.isArray(data.rules)) {
+            // 导入自动切换规则（支持新旧格式）
+            const rules = data.autoSwitchRules || data.rules;
+            if (rules && Array.isArray(rules)) {
               // 合并规则
-              data.rules.forEach(rule => {
+              rules.forEach(rule => {
                 if (rule && typeof rule === 'object') {
                   this.rules.push(rule);
                   importedRules++;
                 }
               });
+            }
+
+            // 导入设置（如果存在）
+            if (data.settings && typeof data.settings === 'object') {
+              await chrome.storage.sync.set(data.settings);
+              await this.loadSettings(); // 重新加载设置到界面
+              importedSettings = true;
             }
 
             // 保存到存储
@@ -592,7 +634,12 @@ class OptionsManager {
 
             this.renderProfiles();
             this.renderRules();
-            this.showToast(`导入成功: ${importedProfiles}个配置, ${importedRules}个规则`, 'success');
+            
+            let message = `导入成功: ${importedProfiles}个配置, ${importedRules}个规则`;
+            if (importedSettings) {
+              message += ', 扩展设置';
+            }
+            this.showToast(message, 'success');
           } catch (error) {
             console.error('Failed to import data:', error);
             this.showToast('导入失败: ' + error.message, 'error');

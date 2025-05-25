@@ -16,7 +16,8 @@ class PopupManager {
 
   async loadData() {
     try {
-      const response = await chrome.runtime.sendMessage({ action: 'getProfiles' });
+      // 添加超时和重试机制
+      const response = await this.sendMessageWithRetry({ action: 'getProfiles' });
       this.profiles = response.profiles || {};
       this.currentProfile = response.currentProfile || 'direct';
       
@@ -31,7 +32,26 @@ class PopupManager {
       console.log('Current profile:', this.currentProfile);
     } catch (error) {
       console.error('Failed to load profiles:', error);
-      this.showError('加载配置失败');
+      this.showError('加载配置失败: ' + error.message);
+    }
+  }
+
+  async sendMessageWithRetry(message, maxRetries = 3) {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const response = await chrome.runtime.sendMessage(message);
+        if (response) {
+          return response;
+        }
+        throw new Error('No response received');
+      } catch (error) {
+        console.warn(`Message attempt ${i + 1} failed:`, error);
+        if (i === maxRetries - 1) {
+          throw error;
+        }
+        // 等待一段时间后重试
+        await new Promise(resolve => setTimeout(resolve, 100 * (i + 1)));
+      }
     }
   }
 
@@ -151,18 +171,16 @@ class PopupManager {
     try {
       this.showLoading();
       
-      // 测试连接
-      const testUrl = 'https://httpbin.org/ip';
-      const response = await fetch(testUrl, {
-        method: 'GET',
-        timeout: 5000
+      // 通过background script进行代理测试
+      const response = await this.sendMessageWithRetry({
+        action: 'testProxy',
+        profileName: this.currentProfile
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        this.showSuccess(`连接测试成功 - IP: ${data.origin}`);
+      if (response && response.success) {
+        this.showSuccess(`连接测试成功 - IP: ${response.ip || '未知'}`);
       } else {
-        this.showError('连接测试失败');
+        this.showError('连接测试失败: ' + (response?.error || '未知错误'));
       }
     } catch (error) {
       console.error('Proxy test failed:', error);
@@ -183,7 +201,7 @@ class PopupManager {
     try {
       this.showLoading();
       
-      const response = await chrome.runtime.sendMessage({
+      const response = await this.sendMessageWithRetry({
         action: 'switchProfile',
         profileName: profileName
       });
@@ -252,7 +270,7 @@ class PopupManager {
 
   async updateStats() {
     try {
-      const stats = await chrome.runtime.sendMessage({ action: 'getPerformanceStats' });
+      const stats = await this.sendMessageWithRetry({ action: 'getPerformanceStats' });
       
       // 计算今日请求数
       const totalRequests = Object.values(stats).reduce((sum, stat) => sum + stat.requests, 0);
@@ -363,7 +381,7 @@ class PopupManager {
         ">
           <h3 style="margin-bottom: 16px; color: #333;">ProxyMaster</h3>
           <p style="margin-bottom: 12px; font-size: 14px; color: #666;">
-            版本 1.0.0
+            版本 1.0.3
           </p>
           <p style="margin-bottom: 16px; font-size: 12px; color: #999;">
             更强大的代理管理工具<br>

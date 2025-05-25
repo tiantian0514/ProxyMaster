@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProxyMaster - 自动切换调试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success { border-color: #28a745; background: #d4edda; }
+        .error { border-color: #dc3545; background: #f8d7da; }
+        .info { border-color: #17a2b8; background: #d1ecf1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 ProxyMaster 自动切换调试工具</h1>
+        
+        <div class="section">
+            <h3>📊 当前状态</h3>
+            <button onclick="checkStatus()">检查状态</button>
+            <div id="statusResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>🧪 测试URL匹配</h3>
+            <input type="text" id="testUrl" placeholder="输入要测试的URL，例如：https://www.google.com" value="https://www.google.com">
+            <button onclick="testUrl()">测试匹配</button>
+            <div id="testResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>🎯 自动回退测试</h3>
+            <p>测试自动回退功能：当访问没有规则匹配的网站时，是否会自动切换回直连</p>
+            <button onclick="testFallbackScenario()">运行回退测试</button>
+            <div id="fallbackResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>📋 规则列表</h3>
+            <button onclick="loadRules()">加载规则</button>
+            <div id="rulesResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>📑 标签页代理状态</h3>
+            <button onclick="loadTabStates()">查看标签页状态</button>
+            <div id="tabStatesResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>🔄 重新加载配置</h3>
+            <button onclick="reloadConfig()">重新加载</button>
+            <div id="reloadResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>📝 控制台日志</h3>
+            <p>打开浏览器开发者工具的控制台查看详细日志</p>
+            <button onclick="openConsole()">打开控制台</button>
+        </div>
+    </div>
+
+    <script>
+        async function checkStatus() {
+            const result = document.getElementById('statusResult');
+            try {
+                const response = await chrome.runtime.sendMessage({ action: 'getProfiles' });
+                const settings = await chrome.storage.sync.get(['enableAutoSwitch', 'enableAutoFallback', 'autoSwitchRules']);
+                
+                const status = {
+                    currentProfile: response.currentProfile,
+                    profilesCount: Object.keys(response.profiles).length,
+                    autoSwitchEnabled: settings.enableAutoSwitch !== false,
+                    autoFallbackEnabled: settings.enableAutoFallback !== false,
+                    rulesCount: (settings.autoSwitchRules || []).length,
+                    enabledRulesCount: (settings.autoSwitchRules || []).filter(r => r.enabled).length
+                };
+                
+                result.className = 'result info';
+                result.textContent = JSON.stringify(status, null, 2);
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = '错误: ' + error.message;
+            }
+        }
+
+        async function testUrl() {
+            const url = document.getElementById('testUrl').value;
+            const result = document.getElementById('testResult');
+            
+            if (!url) {
+                result.className = 'result error';
+                result.textContent = '请输入URL';
+                return;
+            }
+
+            try {
+                const response = await chrome.runtime.sendMessage({ 
+                    action: 'testAutoSwitch', 
+                    url: url 
+                });
+                
+                if (response.success) {
+                    const info = {
+                        url: url,
+                        matchedRule: response.matchedRule,
+                        currentProfile: response.currentProfile,
+                        rulesCount: response.rulesCount,
+                        wouldSwitch: response.matchedRule && response.matchedRule.profile !== response.currentProfile
+                    };
+                    
+                    result.className = response.matchedRule ? 'result success' : 'result info';
+                    result.textContent = JSON.stringify(info, null, 2);
+                } else {
+                    result.className = 'result error';
+                    result.textContent = '测试失败: ' + response.error;
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = '错误: ' + error.message;
+            }
+        }
+
+        async function loadRules() {
+            const result = document.getElementById('rulesResult');
+            try {
+                const settings = await chrome.storage.sync.get(['autoSwitchRules']);
+                const rules = settings.autoSwitchRules || [];
+                
+                if (rules.length === 0) {
+                    result.className = 'result info';
+                    result.textContent = '没有配置任何自动切换规则';
+                } else {
+                    result.className = 'result success';
+                    result.textContent = rules.map((rule, index) => 
+                        `规则 ${index + 1}: ${rule.name}\n` +
+                        `  类型: ${rule.type}\n` +
+                        `  模式: ${rule.pattern}\n` +
+                        `  代理: ${rule.profile}\n` +
+                        `  优先级: ${rule.priority}\n` +
+                        `  状态: ${rule.enabled ? '启用' : '禁用'}\n`
+                    ).join('\n');
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = '错误: ' + error.message;
+            }
+        }
+
+        async function loadTabStates() {
+            const result = document.getElementById('tabStatesResult');
+            try {
+                const response = await chrome.runtime.sendMessage({ action: 'getTabProxyStates' });
+                
+                if (response.success) {
+                    const tabStates = response.tabStates;
+                    const currentProfile = response.currentProfile;
+                    
+                    if (Object.keys(tabStates).length === 0) {
+                        result.className = 'result info';
+                        result.textContent = '没有活跃的标签页代理状态';
+                    } else {
+                        result.className = 'result success';
+                        let output = `全局代理: ${currentProfile}\n\n标签页状态:\n`;
+                        
+                        Object.entries(tabStates).forEach(([tabId, state]) => {
+                            const time = new Date(state.timestamp).toLocaleTimeString();
+                            output += `标签页 ${tabId}:\n`;
+                            output += `  代理: ${state.profile}\n`;
+                            output += `  类型: ${state.switchType === 'auto' ? '自动切换' : '手动切换'}\n`;
+                            output += `  时间: ${time}\n\n`;
+                        });
+                        
+                        result.textContent = output;
+                    }
+                } else {
+                    result.className = 'result error';
+                    result.textContent = '获取标签页状态失败';
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = '错误: ' + error.message;
+            }
+        }
+
+        async function reloadConfig() {
+            const result = document.getElementById('reloadResult');
+            try {
+                const response = await chrome.runtime.sendMessage({ action: 'reloadProfiles' });
+                if (response.success) {
+                    result.className = 'result success';
+                    result.textContent = '配置重新加载成功';
+                } else {
+                    result.className = 'result error';
+                    result.textContent = '重新加载失败';
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = '错误: ' + error.message;
+            }
+        }
+
+        function openConsole() {
+            alert('请按 F12 或右键选择"检查"来打开开发者工具，然后查看Console标签页');
+        }
+
+        async function testFallbackScenario() {
+            const result = document.getElementById('fallbackResult');
+            result.className = 'result info';
+            result.textContent = '正在运行自动回退测试...';
+
+            try {
+                // 步骤1：检查当前状态
+                const statusResponse = await chrome.runtime.sendMessage({ action: 'getProfiles' });
+                const settings = await chrome.storage.sync.get(['enableAutoSwitch', 'enableAutoFallback']);
+                
+                let testLog = '=== 自动回退测试 ===\n\n';
+                testLog += `初始状态:\n`;
+                testLog += `- 当前代理: ${statusResponse.currentProfile}\n`;
+                testLog += `- 自动切换: ${settings.enableAutoSwitch !== false ? '启用' : '禁用'}\n`;
+                testLog += `- 自动回退: ${settings.enableAutoFallback !== false ? '启用' : '禁用'}\n\n`;
+
+                if (settings.enableAutoSwitch === false) {
+                    testLog += '❌ 自动切换功能未启用，无法测试';
+                    result.className = 'result error';
+                    result.textContent = testLog;
+                    return;
+                }
+
+                // 步骤2：测试有规则匹配的URL（如google.com）
+                testLog += '步骤1: 测试有规则匹配的URL\n';
+                const googleTest = await chrome.runtime.sendMessage({ 
+                    action: 'testAutoSwitch', 
+                    url: 'https://www.google.com' 
+                });
+                
+                if (googleTest.matchedRule) {
+                    testLog += `✅ Google.com 匹配到规则: ${googleTest.matchedRule.name} -> ${googleTest.matchedRule.profile}\n`;
+                } else {
+                    testLog += `⚠️ Google.com 没有匹配到规则\n`;
+                }
+
+                // 步骤3：测试没有规则匹配的URL（如baidu.com）
+                testLog += '\n步骤2: 测试没有规则匹配的URL\n';
+                const baiduTest = await chrome.runtime.sendMessage({ 
+                    action: 'testAutoSwitch', 
+                    url: 'https://www.baidu.com' 
+                });
+                
+                if (baiduTest.matchedRule) {
+                    testLog += `⚠️ Baidu.com 意外匹配到规则: ${baiduTest.matchedRule.name}\n`;
+                } else {
+                    testLog += `✅ Baidu.com 没有匹配到规则（符合预期）\n`;
+                    if (settings.enableAutoFallback !== false) {
+                        testLog += `✅ 自动回退已启用，应该会切换到直连\n`;
+                    } else {
+                        testLog += `⚠️ 自动回退已禁用，不会切换到直连\n`;
+                    }
+                }
+
+                // 步骤4：给出测试结论
+                testLog += '\n=== 测试结论 ===\n';
+                if (settings.enableAutoFallback !== false) {
+                    testLog += '✅ 自动回退功能已启用\n';
+                    testLog += '📝 预期行为：\n';
+                    testLog += '  1. 访问Google.com → 切换到代理\n';
+                    testLog += '  2. 访问Baidu.com → 切换回直连\n';
+                } else {
+                    testLog += '❌ 自动回退功能已禁用\n';
+                    testLog += '📝 当前行为：\n';
+                    testLog += '  1. 访问Google.com → 切换到代理\n';
+                    testLog += '  2. 访问Baidu.com → 保持代理状态\n';
+                }
+
+                result.className = 'result success';
+                result.textContent = testLog;
+
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = '测试失败: ' + error.message;
+            }
+        }
+
+        // 页面加载时自动检查状态
+        document.addEventListener('DOMContentLoaded', () => {
+            checkStatus();
+        });
+    </script>
+</body>
+</html> 
