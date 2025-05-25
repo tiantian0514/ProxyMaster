@@ -1,0 +1,241 @@
+{
+  "extName": {
+    "message": "ProxyMaster - Smart Proxy Manager"
+  },
+  "extDescription": {
+    "message": "A more powerful proxy management tool with intelligent switching, rule learning, and performance optimization"
+  },
+  
+  "directConnection": {
+    "message": "Direct Connection"
+  },
+  "directConnectionDesc": {
+    "message": "Connect directly to the internet"
+  },
+  "currentStatus": {
+    "message": "Current"
+  },
+  "loading": {
+    "message": "Loading..."
+  },
+  
+  "newProfile": {
+    "message": "New Profile"
+  },
+  "testProxy": {
+    "message": "Test Proxy"
+  },
+  "autoSwitch": {
+    "message": "Auto Switch"
+  },
+  "settings": {
+    "message": "Settings"
+  },
+  "help": {
+    "message": "Help"
+  },
+  "about": {
+    "message": "About"
+  },
+  
+  "todayStats": {
+    "message": "Today's Statistics"
+  },
+  "todayRequests": {
+    "message": "Today's Requests"
+  },
+  "todaySwitches": {
+    "message": "Today's Switches"
+  },
+  
+  "noProfiles": {
+    "message": "No proxy profiles yet"
+  },
+  "noProfilesDesc": {
+    "message": "Click \"New Profile\" to get started"
+  },
+  
+  "switchSuccess": {
+    "message": "Switched to"
+  },
+  "switchFailed": {
+    "message": "Switch failed"
+  },
+  "testSuccess": {
+    "message": "Connection test successful"
+  },
+  "testFailed": {
+    "message": "Connection test failed"
+  },
+  "loadFailed": {
+    "message": "Failed to load configuration"
+  },
+  "unknownError": {
+    "message": "Unknown error"
+  },
+  
+  "proxySwitched": {
+    "message": "Proxy switched"
+  },
+  "proxySwitchedRefreshed": {
+    "message": "Proxy switched, page refreshed"
+  },
+  "autoSwitchedTo": {
+    "message": "Auto switched to proxy"
+  },
+  "autoSwitchedToDirect": {
+    "message": "Auto switched to direct connection"
+  },
+  
+  "profileName": {
+    "message": "Profile Name"
+  },
+  "profileNamePlaceholder": {
+    "message": "e.g.: US-Fast, HK-Premium, JP-Gaming"
+  },
+  "profileNameDesc": {
+    "message": "Recommended to start with region code, e.g. US-Fast, HK-Premium"
+  },
+  "displayName": {
+    "message": "Display Name"
+  },
+  "displayNamePlaceholder": {
+    "message": "Name shown in the interface"
+  },
+  "displayNameDesc": {
+    "message": "Friendly name displayed in the interface"
+  },
+  "proxyType": {
+    "message": "Proxy Type"
+  },
+  "proxyHost": {
+    "message": "Proxy Host"
+  },
+  "proxyPort": {
+    "message": "Port"
+  },
+  "username": {
+    "message": "Username"
+  },
+  "password": {
+    "message": "Password"
+  },
+  "optional": {
+    "message": "Optional"
+  },
+  
+  "autoSwitchRules": {
+    "message": "Auto Switch Rules"
+  },
+  "addRule": {
+    "message": "Add Rule"
+  },
+  "editRule": {
+    "message": "Edit Rule"
+  },
+  "deleteRule": {
+    "message": "Delete Rule"
+  },
+  "ruleName": {
+    "message": "Rule Name"
+  },
+  "ruleType": {
+    "message": "Match Type"
+  },
+  "rulePattern": {
+    "message": "Match Pattern"
+  },
+  "ruleProfile": {
+    "message": "Target Proxy"
+  },
+  "rulePriority": {
+    "message": "Priority"
+  },
+  "ruleEnabled": {
+    "message": "Enabled"
+  },
+  
+  "domain": {
+    "message": "Domain"
+  },
+  "url": {
+    "message": "URL"
+  },
+  "wildcard": {
+    "message": "Wildcard"
+  },
+  "regex": {
+    "message": "Regular Expression"
+  },
+  
+  "enableAutoSwitch": {
+    "message": "Enable Auto Switch"
+  },
+  "enableAutoFallback": {
+    "message": "Enable Auto Fallback to Direct"
+  },
+  
+  "save": {
+    "message": "Save"
+  },
+  "cancel": {
+    "message": "Cancel"
+  },
+  "delete": {
+    "message": "Delete"
+  },
+  "edit": {
+    "message": "Edit"
+  },
+  "update": {
+    "message": "Update"
+  },
+  "confirm": {
+    "message": "Confirm"
+  },
+  "close": {
+    "message": "Close"
+  },
+  
+  "exportConfig": {
+    "message": "Export Config"
+  },
+  "importConfig": {
+    "message": "Import Config"
+  },
+  "exportSuccess": {
+    "message": "Configuration exported successfully"
+  },
+  "importSuccess": {
+    "message": "Configuration imported successfully"
+  },
+  "importFailed": {
+    "message": "Configuration import failed"
+  },
+  
+  "version": {
+    "message": "Version"
+  },
+  "moreFeatures": {
+    "message": "More powerful proxy management tool"
+  },
+  "supportFeatures": {
+    "message": "Supports intelligent switching and performance optimization"
+  },
+  
+  "incompleteConfig": {
+    "message": "Incomplete configuration"
+  },
+  "configSaved": {
+    "message": "Configuration saved"
+  },
+  "configDeleted": {
+    "message": "Configuration deleted"
+  },
+  "ruleSaved": {
+    "message": "Rule saved"
+  },
+  "ruleDeleted": {
+    "message": "Rule deleted"
+  }
+} 

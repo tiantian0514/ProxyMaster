@@ -434,11 +434,18 @@
       <form id="profileForm">
         <div class="form-group">
           <label>配置名称</label>
-          <input type="text" id="profileName" required>
+          <input type="text" id="profileName" placeholder="建议格式：US-高速、HK-专线、JP-游戏" required>
+          <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+            建议使用地区代码开头，如：US-高速、HK-专线、JP-游戏，便于识别和管理<br>
+            常用代码：US-美国、HK-香港、JP-日本、SG-新加坡、UK-英国、DE-德国、KR-韩国、TW-台湾
+          </small>
         </div>
         <div class="form-group">
           <label>显示名称</label>
-          <input type="text" id="profileDisplayName">
+          <input type="text" id="profileDisplayName" placeholder="美国高速代理、香港CN2专线、日本游戏加速">
+          <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+            用于界面显示的完整描述，便于理解代理用途和特点
+          </small>
         </div>
         <div class="form-group">
           <label>协议类型</label>

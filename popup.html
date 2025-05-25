@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -221,12 +221,12 @@
 <body>
   <div class="header">
     <h1>ProxyMaster</h1>
-    <div class="status" id="currentStatus">正在加载...</div>
+    <div class="status" id="currentStatus" data-i18n="loading">正在加载...</div>
   </div>
 
   <div class="loading" id="loading">
     <div class="spinner"></div>
-    <div>加载中...</div>
+    <div data-i18n="loading">加载中...</div>
   </div>
 
   <div class="content" id="content" style="display: none;">
@@ -235,38 +235,39 @@
     </div>
 
     <div class="quick-actions">
-      <button class="action-btn" id="addProfileBtn">
+      <button class="action-btn" id="addProfileBtn" data-i18n="newProfile">
         ➕ 新建配置
       </button>
-      <button class="action-btn" id="testProxyBtn">
+      <button class="action-btn" id="testProxyBtn" data-i18n="testProxy">
         🔍 测试代理
       </button>
-      <button class="action-btn" id="autoSwitchBtn">
+      <button class="action-btn" id="autoSwitchBtn" data-i18n="autoSwitch">
         🔄 智能切换
       </button>
     </div>
 
     <div class="stats-section">
-      <div class="stats-title">今日统计</div>
+      <div class="stats-title" data-i18n="todayStats">今日统计</div>
       <div class="stats-grid">
         <div class="stat-item">
           <div class="stat-value" id="requestCount">0</div>
-          <div class="stat-label">请求数</div>
+          <div class="stat-label" data-i18n="todayRequests">请求数</div>
         </div>
         <div class="stat-item">
           <div class="stat-value" id="switchCount">0</div>
-          <div class="stat-label">切换次数</div>
+          <div class="stat-label" data-i18n="todaySwitches">切换次数</div>
         </div>
       </div>
     </div>
   </div>
 
   <div class="footer">
-    <button class="footer-btn" id="settingsBtn">⚙️ 设置</button>
-    <button class="footer-btn" id="helpBtn">❓ 帮助</button>
-    <button class="footer-btn" id="aboutBtn">ℹ️ 关于</button>
+    <button class="footer-btn" id="settingsBtn" data-i18n="settings">⚙️ 设置</button>
+    <button class="footer-btn" id="helpBtn" data-i18n="help">❓ 帮助</button>
+    <button class="footer-btn" id="aboutBtn" data-i18n="about">ℹ️ 关于</button>
   </div>
 
+  <script src="i18n.js"></script>
   <script src="popup.js"></script>
 </body>
 </html> 

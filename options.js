@@ -509,7 +509,7 @@ class OptionsManager {
 
       const data = {
         // 基本信息
-        version: '1.0.3',
+        version: '1.0.0',
         exportTime: new Date().toISOString(),
         
         // 代理配置
@@ -602,8 +602,8 @@ class OptionsManager {
               });
             }
             
-            // 导入自动切换规则（支持新旧格式）
-            const rules = data.autoSwitchRules || data.rules;
+            // 导入自动切换规则
+            const rules = data.autoSwitchRules;
             if (rules && Array.isArray(rules)) {
               // 合并规则
               rules.forEach(rule => {

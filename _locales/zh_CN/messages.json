@@ -1,0 +1,241 @@
+{
+  "extName": {
+    "message": "ProxyMaster - 智能代理管理器"
+  },
+  "extDescription": {
+    "message": "更强大的代理管理工具，支持智能切换、规则学习和性能优化"
+  },
+  
+  "directConnection": {
+    "message": "直接连接"
+  },
+  "directConnectionDesc": {
+    "message": "直接连接到互联网"
+  },
+  "currentStatus": {
+    "message": "当前"
+  },
+  "loading": {
+    "message": "正在加载..."
+  },
+  
+  "newProfile": {
+    "message": "新建配置"
+  },
+  "testProxy": {
+    "message": "测试代理"
+  },
+  "autoSwitch": {
+    "message": "智能切换"
+  },
+  "settings": {
+    "message": "设置"
+  },
+  "help": {
+    "message": "帮助"
+  },
+  "about": {
+    "message": "关于"
+  },
+  
+  "todayStats": {
+    "message": "今日统计"
+  },
+  "todayRequests": {
+    "message": "今日请求"
+  },
+  "todaySwitches": {
+    "message": "今日切换"
+  },
+  
+  "noProfiles": {
+    "message": "还没有代理配置"
+  },
+  "noProfilesDesc": {
+    "message": "点击\"新建配置\"开始使用"
+  },
+  
+  "switchSuccess": {
+    "message": "已切换到"
+  },
+  "switchFailed": {
+    "message": "切换失败"
+  },
+  "testSuccess": {
+    "message": "连接测试成功"
+  },
+  "testFailed": {
+    "message": "连接测试失败"
+  },
+  "loadFailed": {
+    "message": "加载配置失败"
+  },
+  "unknownError": {
+    "message": "未知错误"
+  },
+  
+  "proxySwitched": {
+    "message": "代理已切换"
+  },
+  "proxySwitchedRefreshed": {
+    "message": "代理已切换，页面已刷新"
+  },
+  "autoSwitchedTo": {
+    "message": "已自动切换到代理"
+  },
+  "autoSwitchedToDirect": {
+    "message": "已自动切换到直连"
+  },
+  
+  "profileName": {
+    "message": "配置名称"
+  },
+  "profileNamePlaceholder": {
+    "message": "如：US-高速、HK-专线、JP-游戏"
+  },
+  "profileNameDesc": {
+    "message": "建议使用地区代码开头，如 US-高速、HK-专线"
+  },
+  "displayName": {
+    "message": "显示名称"
+  },
+  "displayNamePlaceholder": {
+    "message": "在界面中显示的名称"
+  },
+  "displayNameDesc": {
+    "message": "用于在界面中显示的友好名称"
+  },
+  "proxyType": {
+    "message": "代理类型"
+  },
+  "proxyHost": {
+    "message": "代理地址"
+  },
+  "proxyPort": {
+    "message": "端口"
+  },
+  "username": {
+    "message": "用户名"
+  },
+  "password": {
+    "message": "密码"
+  },
+  "optional": {
+    "message": "可选"
+  },
+  
+  "autoSwitchRules": {
+    "message": "自动切换规则"
+  },
+  "addRule": {
+    "message": "添加规则"
+  },
+  "editRule": {
+    "message": "编辑规则"
+  },
+  "deleteRule": {
+    "message": "删除规则"
+  },
+  "ruleName": {
+    "message": "规则名称"
+  },
+  "ruleType": {
+    "message": "匹配类型"
+  },
+  "rulePattern": {
+    "message": "匹配模式"
+  },
+  "ruleProfile": {
+    "message": "目标代理"
+  },
+  "rulePriority": {
+    "message": "优先级"
+  },
+  "ruleEnabled": {
+    "message": "启用"
+  },
+  
+  "domain": {
+    "message": "域名"
+  },
+  "url": {
+    "message": "网址"
+  },
+  "wildcard": {
+    "message": "通配符"
+  },
+  "regex": {
+    "message": "正则表达式"
+  },
+  
+  "enableAutoSwitch": {
+    "message": "启用自动切换"
+  },
+  "enableAutoFallback": {
+    "message": "启用自动回退到直连"
+  },
+  
+  "save": {
+    "message": "保存"
+  },
+  "cancel": {
+    "message": "取消"
+  },
+  "delete": {
+    "message": "删除"
+  },
+  "edit": {
+    "message": "编辑"
+  },
+  "update": {
+    "message": "更新"
+  },
+  "confirm": {
+    "message": "确定"
+  },
+  "close": {
+    "message": "关闭"
+  },
+  
+  "exportConfig": {
+    "message": "导出配置"
+  },
+  "importConfig": {
+    "message": "导入配置"
+  },
+  "exportSuccess": {
+    "message": "配置导出成功"
+  },
+  "importSuccess": {
+    "message": "配置导入成功"
+  },
+  "importFailed": {
+    "message": "配置导入失败"
+  },
+  
+  "version": {
+    "message": "版本"
+  },
+  "moreFeatures": {
+    "message": "更强大的代理管理工具"
+  },
+  "supportFeatures": {
+    "message": "支持智能切换和性能优化"
+  },
+  
+  "incompleteConfig": {
+    "message": "配置不完整"
+  },
+  "configSaved": {
+    "message": "配置已保存"
+  },
+  "configDeleted": {
+    "message": "配置已删除"
+  },
+  "ruleSaved": {
+    "message": "规则已保存"
+  },
+  "ruleDeleted": {
+    "message": "规则已删除"
+  }
+} 

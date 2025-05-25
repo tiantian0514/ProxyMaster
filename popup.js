@@ -10,6 +10,7 @@ class PopupManager {
     await this.loadData();
     this.setupEventListeners();
     this.renderProfiles();
+    this.updateStatus(); // 确保状态更新
     this.updateStats();
     this.hideLoading();
   }
@@ -18,21 +19,39 @@ class PopupManager {
     try {
       // 添加超时和重试机制
       const response = await this.sendMessageWithRetry({ action: 'getProfiles' });
+      
+      console.log('Raw response from background:', response);
+      
       this.profiles = response.profiles || {};
       this.currentProfile = response.currentProfile || 'direct';
       
       // 确保直连配置存在
-      this.profiles.direct = {
-        name: 'direct',
-        displayName: '直接连接',
-        type: 'direct'
-      };
+      if (!this.profiles.direct) {
+        this.profiles.direct = {
+          name: 'direct',
+          displayName: i18n('directConnection'),
+          type: 'direct'
+        };
+      }
       
-      console.log('Loaded profiles:', Object.keys(this.profiles));
-      console.log('Current profile:', this.currentProfile);
+      console.log('Loaded data:', {
+        profiles: Object.keys(this.profiles),
+        currentProfile: this.currentProfile,
+        profilesData: this.profiles
+      });
     } catch (error) {
       console.error('Failed to load profiles:', error);
-      this.showError('加载配置失败: ' + error.message);
+      this.showError(i18n('loadFailed') + ': ' + error.message);
+      
+      // 设置默认值以防加载失败
+      this.profiles = {
+        direct: {
+          name: 'direct',
+          displayName: i18n('directConnection'),
+          type: 'direct'
+        }
+      };
+      this.currentProfile = 'direct';
     }
   }
 
@@ -103,17 +122,29 @@ class PopupManager {
     const profileList = document.getElementById('profileList');
     profileList.innerHTML = '';
 
+    console.log('Rendering profiles:', {
+      profileCount: Object.keys(this.profiles).length,
+      currentProfile: this.currentProfile,
+      profiles: this.profiles
+    });
+
     if (Object.keys(this.profiles).length === 0) {
       this.showEmptyState();
+      this.updateStatus();
       return;
     }
 
+    // 确保直连配置存在
+    if (!this.profiles.direct) {
+      this.profiles.direct = {
+        name: 'direct',
+        displayName: i18n('directConnection'),
+        type: 'direct'
+      };
+    }
+
     // 渲染直连配置
-    this.renderProfileItem('direct', this.profiles.direct || {
-      name: 'direct',
-      displayName: '直接连接',
-      type: 'direct'
-    });
+    this.renderProfileItem('direct', this.profiles.direct);
 
     // 渲染其他配置
     Object.entries(this.profiles).forEach(([name, profile]) => {
@@ -153,7 +184,7 @@ class PopupManager {
 
   getProfileDetails(profile) {
     if (profile.type === 'direct') {
-      return '直接连接到互联网';
+      return i18n('directConnectionDesc');
     }
     
     const protocol = profile.protocol || 'http';
@@ -164,7 +195,7 @@ class PopupManager {
       return `${protocol.toUpperCase()}://${host}:${port}`;
     }
     
-    return '配置不完整';
+    return i18n('incompleteConfig');
   }
 
   async testCurrentProxy() {
@@ -178,13 +209,13 @@ class PopupManager {
       });
       
       if (response && response.success) {
-        this.showSuccess(`连接测试成功 - IP: ${response.ip || '未知'}`);
+        this.showSuccess(`${i18n('testSuccess')} - IP: ${response.ip || i18n('unknownError')}`);
       } else {
-        this.showError('连接测试失败: ' + (response?.error || '未知错误'));
+        this.showError(i18n('testFailed') + ': ' + (response?.error || i18n('unknownError')));
       }
     } catch (error) {
       console.error('Proxy test failed:', error);
-      this.showError('连接测试失败: ' + error.message);
+      this.showError(i18n('testFailed') + ': ' + error.message);
     } finally {
       this.hideLoading();
     }
@@ -201,9 +232,21 @@ class PopupManager {
     try {
       this.showLoading();
       
+      // 获取当前活跃标签页信息
+      let currentTabId = null;
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs.length > 0) {
+          currentTabId = tabs[0].id;
+        }
+      } catch (error) {
+        console.warn('Could not get current tab:', error);
+      }
+      
       const response = await this.sendMessageWithRetry({
         action: 'switchProfile',
-        profileName: profileName
+        profileName: profileName,
+        tabId: currentTabId
       });
 
       console.log('Switch response:', response);
@@ -212,18 +255,18 @@ class PopupManager {
         this.currentProfile = response.currentProfile || profileName;
         this.renderProfiles();
         
-        const displayName = profileName === 'direct' ? '直接连接' : 
+        const displayName = profileName === 'direct' ? i18n('directConnection') : 
           (this.profiles[profileName]?.displayName || profileName);
-        this.showSuccess(`已切换到: ${displayName}`);
+        this.showSuccess(`${i18n('switchSuccess')}: ${displayName}`);
         
         // 更新切换计数
         await this.incrementSwitchCount();
       } else {
-        this.showError('切换失败: ' + (response?.error || '未知错误'));
+        this.showError(i18n('switchFailed') + ': ' + (response?.error || i18n('unknownError')));
       }
     } catch (error) {
       console.error('Failed to switch profile:', error);
-      this.showError('切换失败: ' + error.message);
+      this.showError(i18n('switchFailed') + ': ' + error.message);
     } finally {
       this.hideLoading();
     }
@@ -257,14 +300,31 @@ class PopupManager {
 
   updateStatus() {
     const statusElement = document.getElementById('currentStatus');
-    const currentProfileData = this.profiles[this.currentProfile];
+    
+    console.log('Updating status:', {
+      currentProfile: this.currentProfile,
+      profiles: Object.keys(this.profiles)
+    });
+    
+    if (!this.currentProfile) {
+      statusElement.textContent = i18n('loading');
+      return;
+    }
     
     if (this.currentProfile === 'direct') {
-      statusElement.textContent = '当前: 直接连接';
-    } else if (currentProfileData) {
-      statusElement.textContent = `当前: ${currentProfileData.displayName || currentProfileData.name}`;
+      statusElement.textContent = `${i18n('currentStatus')}: ${i18n('directConnection')}`;
     } else {
-      statusElement.textContent = '状态未知';
+      const currentProfileData = this.profiles[this.currentProfile];
+      if (currentProfileData) {
+        const displayName = currentProfileData.displayName || currentProfileData.name || this.currentProfile;
+        // 提取前2个字符作为简短显示
+        const shortName = this.currentProfile.substring(0, 2).toUpperCase();
+        statusElement.innerHTML = `${i18n('currentStatus')}: <span style="font-size: 16px; font-weight: bold; color: #667eea;">${shortName}</span> (${displayName})`;
+      } else {
+        // 如果找不到配置数据，显示配置名称的前2个字符
+        const shortName = this.currentProfile.substring(0, 2).toUpperCase();
+        statusElement.innerHTML = `${i18n('currentStatus')}: <span style="font-size: 16px; font-weight: bold; color: #667eea;">${shortName}</span>`;
+      }
     }
   }
 
@@ -309,8 +369,8 @@ class PopupManager {
     profileList.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">🔧</div>
-        <div>还没有代理配置</div>
-        <div style="font-size: 10px; margin-top: 4px;">点击"新建配置"开始使用</div>
+        <div>${i18n('noProfiles')}</div>
+        <div style="font-size: 10px; margin-top: 4px;">${i18n('noProfilesDesc')}</div>
       </div>
     `;
   }
@@ -381,11 +441,11 @@ class PopupManager {
         ">
           <h3 style="margin-bottom: 16px; color: #333;">ProxyMaster</h3>
           <p style="margin-bottom: 12px; font-size: 14px; color: #666;">
-            版本 1.0.3
+            ${i18n('version')} 1.0.0
           </p>
           <p style="margin-bottom: 16px; font-size: 12px; color: #999;">
-            更强大的代理管理工具<br>
-            支持智能切换和性能优化
+            ${i18n('moreFeatures')}<br>
+            ${i18n('supportFeatures')}
           </p>
           <button onclick="document.getElementById('aboutModal').remove()" style="
             background: #667eea;
@@ -394,7 +454,7 @@ class PopupManager {
             padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
-          ">确定</button>
+          ">${i18n('confirm')}</button>
         </div>
       </div>
     `;

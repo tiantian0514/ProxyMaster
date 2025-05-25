@@ -1,0 +1,241 @@
+{
+  "extName": {
+    "message": "ProxyMaster - スマートプロキシマネージャー"
+  },
+  "extDescription": {
+    "message": "インテリジェント切り替え、ルール学習、パフォーマンス最適化を備えた、より強力なプロキシ管理ツール"
+  },
+  
+  "directConnection": {
+    "message": "直接接続"
+  },
+  "directConnectionDesc": {
+    "message": "インターネットに直接接続"
+  },
+  "currentStatus": {
+    "message": "現在"
+  },
+  "loading": {
+    "message": "読み込み中..."
+  },
+  
+  "newProfile": {
+    "message": "新しいプロファイル"
+  },
+  "testProxy": {
+    "message": "プロキシテスト"
+  },
+  "autoSwitch": {
+    "message": "自動切り替え"
+  },
+  "settings": {
+    "message": "設定"
+  },
+  "help": {
+    "message": "ヘルプ"
+  },
+  "about": {
+    "message": "について"
+  },
+  
+  "todayStats": {
+    "message": "今日の統計"
+  },
+  "todayRequests": {
+    "message": "今日のリクエスト"
+  },
+  "todaySwitches": {
+    "message": "今日の切り替え"
+  },
+  
+  "noProfiles": {
+    "message": "プロキシプロファイルがありません"
+  },
+  "noProfilesDesc": {
+    "message": "「新しいプロファイル」をクリックして開始"
+  },
+  
+  "switchSuccess": {
+    "message": "切り替え完了"
+  },
+  "switchFailed": {
+    "message": "切り替え失敗"
+  },
+  "testSuccess": {
+    "message": "接続テスト成功"
+  },
+  "testFailed": {
+    "message": "接続テスト失敗"
+  },
+  "loadFailed": {
+    "message": "設定の読み込みに失敗"
+  },
+  "unknownError": {
+    "message": "不明なエラー"
+  },
+  
+  "proxySwitched": {
+    "message": "プロキシが切り替わりました"
+  },
+  "proxySwitchedRefreshed": {
+    "message": "プロキシが切り替わり、ページが更新されました"
+  },
+  "autoSwitchedTo": {
+    "message": "プロキシに自動切り替えしました"
+  },
+  "autoSwitchedToDirect": {
+    "message": "直接接続に自動切り替えしました"
+  },
+  
+  "profileName": {
+    "message": "プロファイル名"
+  },
+  "profileNamePlaceholder": {
+    "message": "例：US-高速、HK-専用線、JP-ゲーム"
+  },
+  "profileNameDesc": {
+    "message": "地域コードで始めることをお勧めします（例：US-高速、HK-専用線）"
+  },
+  "displayName": {
+    "message": "表示名"
+  },
+  "displayNamePlaceholder": {
+    "message": "インターフェースに表示される名前"
+  },
+  "displayNameDesc": {
+    "message": "インターフェースに表示されるフレンドリーな名前"
+  },
+  "proxyType": {
+    "message": "プロキシタイプ"
+  },
+  "proxyHost": {
+    "message": "プロキシホスト"
+  },
+  "proxyPort": {
+    "message": "ポート"
+  },
+  "username": {
+    "message": "ユーザー名"
+  },
+  "password": {
+    "message": "パスワード"
+  },
+  "optional": {
+    "message": "オプション"
+  },
+  
+  "autoSwitchRules": {
+    "message": "自動切り替えルール"
+  },
+  "addRule": {
+    "message": "ルール追加"
+  },
+  "editRule": {
+    "message": "ルール編集"
+  },
+  "deleteRule": {
+    "message": "ルール削除"
+  },
+  "ruleName": {
+    "message": "ルール名"
+  },
+  "ruleType": {
+    "message": "マッチタイプ"
+  },
+  "rulePattern": {
+    "message": "マッチパターン"
+  },
+  "ruleProfile": {
+    "message": "ターゲットプロキシ"
+  },
+  "rulePriority": {
+    "message": "優先度"
+  },
+  "ruleEnabled": {
+    "message": "有効"
+  },
+  
+  "domain": {
+    "message": "ドメイン"
+  },
+  "url": {
+    "message": "URL"
+  },
+  "wildcard": {
+    "message": "ワイルドカード"
+  },
+  "regex": {
+    "message": "正規表現"
+  },
+  
+  "enableAutoSwitch": {
+    "message": "自動切り替えを有効にする"
+  },
+  "enableAutoFallback": {
+    "message": "直接接続への自動フォールバックを有効にする"
+  },
+  
+  "save": {
+    "message": "保存"
+  },
+  "cancel": {
+    "message": "キャンセル"
+  },
+  "delete": {
+    "message": "削除"
+  },
+  "edit": {
+    "message": "編集"
+  },
+  "update": {
+    "message": "更新"
+  },
+  "confirm": {
+    "message": "確認"
+  },
+  "close": {
+    "message": "閉じる"
+  },
+  
+  "exportConfig": {
+    "message": "設定をエクスポート"
+  },
+  "importConfig": {
+    "message": "設定をインポート"
+  },
+  "exportSuccess": {
+    "message": "設定のエクスポートが成功しました"
+  },
+  "importSuccess": {
+    "message": "設定のインポートが成功しました"
+  },
+  "importFailed": {
+    "message": "設定のインポートに失敗しました"
+  },
+  
+  "version": {
+    "message": "バージョン"
+  },
+  "moreFeatures": {
+    "message": "より強力なプロキシ管理ツール"
+  },
+  "supportFeatures": {
+    "message": "インテリジェント切り替えとパフォーマンス最適化をサポート"
+  },
+  
+  "incompleteConfig": {
+    "message": "設定が不完全です"
+  },
+  "configSaved": {
+    "message": "設定が保存されました"
+  },
+  "configDeleted": {
+    "message": "設定が削除されました"
+  },
+  "ruleSaved": {
+    "message": "ルールが保存されました"
+  },
+  "ruleDeleted": {
+    "message": "ルールが削除されました"
+  }
+} 
