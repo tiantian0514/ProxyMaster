@@ -1,7 +1,7 @@
 # ProxyMaster - 智能代理管理器
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Available-brightgreen)](https://chrome.google.com/webstore)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/sophiehe/ProxyMaster/releases)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/tiantian0514/ProxyMaster/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 > 🚀 更强大的Chrome代理扩展程序，超越SwitchyOmega的现代化替代方案

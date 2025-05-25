@@ -87,13 +87,13 @@ proxy, 代理, VPN, 网络, 切换, SwitchyOmega, 代理管理, 智能切换, �
 中文 (简体), English
 
 ## 网站
-https://github.com/yourusername/proxymaster
+https://github.com/tiantian0514/ProxyMaster
 
 ## 支持邮箱
 support@proxymaster.com
 
 ## 隐私政策
-https://github.com/yourusername/proxymaster/blob/main/PRIVACY.md
+https://github.com/tiantian0514/ProxyMaster/blob/main/PRIVACY.md
 
 ## 版本信息
 版本: 1.0.0

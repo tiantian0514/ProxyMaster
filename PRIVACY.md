@@ -93,7 +93,7 @@ ProxyMaster不使用：
 
 如有隐私相关问题，请联系：
 - 邮箱：privacy@proxymaster.com
-- GitHub：https://github.com/yourusername/proxymaster/issues
+- GitHub：https://github.com/tiantian0514/ProxyMaster/issues
 
 ## 法律依据
 
