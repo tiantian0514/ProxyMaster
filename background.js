@@ -666,9 +666,9 @@ class ProxyManager {
     try {
       console.log(`🔄 Switching proxy and redirecting: ${targetProfile} → ${url}`);
       
-      // 防止重复处理同一个URL
+      // 防止重复处理同一个URL（手工切换除外）
       const tabState = this.tabStates.get(tabId);
-      if (tabState && tabState.lastProcessedUrl === url && tabState.proxy === targetProfile) {
+      if (setBy !== 'manual' && tabState && tabState.lastProcessedUrl === url && tabState.proxy === targetProfile) {
         console.log(`✅ URL already processed with correct proxy: ${url}`);
         return;
       }
