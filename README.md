@@ -43,8 +43,8 @@
 
 1. **克隆项目**
 ```bash
-git clone https://github.com/your-username/proxymaster.git
-cd proxymaster
+git clone https://github.com/tiantian0514/ProxyMaster.git
+cd ProxyMaster
 ```
 
 2. **安装依赖**
@@ -213,13 +213,13 @@ npm test
 
 ## 📞 联系我们
 
-- 🐛 [报告Bug](https://github.com/your-username/proxymaster/issues)
-- 💡 [功能建议](https://github.com/your-username/proxymaster/discussions)
+- 🐛 [报告Bug](https://github.com/tiantian0514/ProxyMaster/issues)
+- 💡 [功能建议](https://github.com/tiantian0514/ProxyMaster/discussions)
 - 📧 邮箱: hkhuangym@gmail.com
-- 💬 QQ群: 123456789
+- 💬 QQ群: 545380701
 
 ---
 
 ⭐ 如果这个项目对你有帮助，请给我们一个星标！
 
-[![Star History Chart](https://api.star-history.com/svg?repos=your-username/proxymaster&type=Date)](https://star-history.com/#your-username/proxymaster&Date) 
+[![Star History Chart](https://api.star-history.com/svg?repos=tiantian0514/ProxyMaster&type=Date)](https://star-history.com/#tiantian0514/ProxyMaster&Date) 
