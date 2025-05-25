@@ -362,12 +362,14 @@ class ProxyManager {
         }
       } else {
         // 新标签页，默认使用直连
-        console.log(`🆕 New tab ${tabId}, setting to direct connection`);
+        console.log(`🆕 New tab ${tabId} has no state, setting to direct connection`);
+        console.log(`🆕 Tab URL: ${tab.url}`);
         this.tabStates.set(tabId, {
           proxy: 'direct',
           setBy: 'auto',
           timestamp: Date.now()
         });
+        console.log(`🆕 Set new tab ${tabId} state:`, this.tabStates.get(tabId));
         
         if (this.currentProfile !== 'direct') {
           console.log(`🔄 Switching global proxy to direct for new tab ${tabId}`);
@@ -478,13 +480,19 @@ class ProxyManager {
   }
 
   async setTabProxy(tabId, profileName, setBy = 'manual') {
-    console.log(`Setting tab ${tabId} proxy to: ${profileName} (${setBy})`);
+    console.log(`🔧 setTabProxy called: tabId=${tabId}, profileName=${profileName}, setBy=${setBy}`);
+    
+    // 显示当前标签页状态
+    const currentTabState = this.tabStates.get(tabId);
+    console.log(`📋 Current tab state before setTabProxy:`, currentTabState);
+    console.log(`🌐 Current global proxy:`, this.currentProfile);
     
     // 获取当前标签页信息
     let currentUrl = null;
     try {
       const tab = await chrome.tabs.get(tabId);
       currentUrl = tab.url;
+      console.log(`📄 Current tab URL:`, currentUrl);
     } catch (error) {
       console.warn('Could not get tab URL:', error);
     }
@@ -689,6 +697,7 @@ class ProxyManager {
       }
       
       // 3. 更新标签页状态
+      console.log(`📝 About to update tab ${tabId} state: proxy=${targetProfile}, setBy=${setBy}, url=${url}`);
       this.tabStates.set(tabId, {
         proxy: targetProfile,
         setBy: setBy || 'auto', // 使用传入的setBy参数
@@ -696,6 +705,7 @@ class ProxyManager {
         lastProcessedUrl: url,
         redirecting: true // 标记正在重定向
       });
+      console.log(`📝 Updated tab ${tabId} state:`, this.tabStates.get(tabId));
       
       // 4. 确认代理生效后再重新导航
       try {
