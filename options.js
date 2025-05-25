@@ -6,6 +6,8 @@ class OptionsManager {
     this.rules = [];
     this.editingProfile = null;
     this.editingRuleIndex = null;
+    this.rulesListenerAdded = false;
+    this.profilesListenerAdded = false;
     this.init();
   }
 
@@ -174,7 +176,8 @@ class OptionsManager {
       profileList.appendChild(profileElement);
     });
 
-    // 添加事件委托
+    // 只在第一次渲染时添加事件委托
+    if (!this.profilesListenerAdded) {
     profileList.addEventListener('click', (e) => {
       const button = e.target.closest('button[data-action]');
       if (!button) return;
@@ -194,6 +197,8 @@ class OptionsManager {
           break;
       }
     });
+      this.profilesListenerAdded = true;
+    }
   }
 
   renderRules() {
@@ -246,7 +251,8 @@ class OptionsManager {
       rulesList.appendChild(ruleElement);
     });
 
-    // 添加事件委托
+    // 只在第一次渲染时添加事件委托
+    if (!this.rulesListenerAdded) {
     rulesList.addEventListener('click', (e) => {
       const button = e.target.closest('button[data-action]');
       if (!button) return;
@@ -266,6 +272,8 @@ class OptionsManager {
           break;
       }
     });
+      this.rulesListenerAdded = true;
+    }
   }
 
   async updateStats() {
@@ -718,7 +726,6 @@ class OptionsManager {
     // 重置表单
     document.getElementById('ruleForm').reset();
     document.getElementById('rulePriority').value = '100';
-    document.getElementById('ruleEnabled').checked = true;
     // 更新帮助文本
     this.updatePatternHelp('domain');
   }
@@ -763,19 +770,18 @@ class OptionsManager {
       return;
     }
 
-    // 填充表单数据
+    // 设置编辑模式
+    this.editingRuleIndex = index;
+    
+    // 先更新代理配置选项
+    this.updateRuleProfileOptions();
+    
+    // 然后填充表单数据
     document.getElementById('ruleName').value = rule.name || '';
     document.getElementById('ruleType').value = rule.type || 'domain';
     document.getElementById('rulePattern').value = rule.pattern || '';
     document.getElementById('ruleProfile').value = rule.profile || '';
     document.getElementById('rulePriority').value = rule.priority || 100;
-    document.getElementById('ruleEnabled').checked = rule.enabled !== false;
-
-    // 设置编辑模式
-    this.editingRuleIndex = index;
-    
-    // 更新代理配置选项
-    this.updateRuleProfileOptions();
     
     // 更新帮助文本
     this.updatePatternHelp(rule.type || 'domain');
@@ -837,7 +843,7 @@ class OptionsManager {
     const pattern = document.getElementById('rulePattern').value.trim();
     const profile = document.getElementById('ruleProfile').value;
     const priority = parseInt(document.getElementById('rulePriority').value);
-    const enabled = document.getElementById('ruleEnabled').checked;
+    const enabled = this.editingRuleIndex !== null ? this.rules[this.editingRuleIndex].enabled : true;
 
     // 验证必填字段
     if (!name) {
@@ -886,7 +892,7 @@ class OptionsManager {
         this.rules[this.editingRuleIndex] = rule;
       } else {
         // 新建模式：添加到规则列表
-        this.rules.push(rule);
+      this.rules.push(rule);
       }
       
       // 按优先级排序

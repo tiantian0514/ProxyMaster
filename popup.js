@@ -27,11 +27,11 @@ class PopupManager {
       
       // 确保直连配置存在
       if (!this.profiles.direct) {
-        this.profiles.direct = {
-          name: 'direct',
+      this.profiles.direct = {
+        name: 'direct',
           displayName: i18n('directConnection'),
-          type: 'direct'
-        };
+        type: 'direct'
+      };
       }
       
       console.log('Loaded data:', {
@@ -246,7 +246,8 @@ class PopupManager {
       const response = await this.sendMessageWithRetry({
         action: 'switchProfile',
         profileName: profileName,
-        tabId: currentTabId
+        tabId: currentTabId,
+        isManual: true
       });
 
       console.log('Switch response:', response);
