@@ -215,7 +215,7 @@ npm test
 
 - 🐛 [报告Bug](https://github.com/your-username/proxymaster/issues)
 - 💡 [功能建议](https://github.com/your-username/proxymaster/discussions)
-- 📧 邮箱: support@proxymaster.dev
+- 📧 邮箱: hkhuangym@gmail.com
 - 💬 QQ群: 123456789
 
 ---

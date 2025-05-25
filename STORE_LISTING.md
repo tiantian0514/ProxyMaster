@@ -90,7 +90,7 @@ proxy, 代理, VPN, 网络, 切换, SwitchyOmega, 代理管理, 智能切换, �
 https://github.com/tiantian0514/ProxyMaster
 
 ## 支持邮箱
-support@proxymaster.com
+hkhuangym@gmail.com
 
 ## 隐私政策
 https://github.com/tiantian0514/ProxyMaster/blob/main/PRIVACY.md

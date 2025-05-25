@@ -92,7 +92,7 @@ ProxyMaster不使用：
 ## 联系我们
 
 如有隐私相关问题，请联系：
-- 邮箱：privacy@proxymaster.com
+- 邮箱：hkhuangym@gmail.com
 - GitHub：https://github.com/tiantian0514/ProxyMaster/issues
 
 ## 法律依据
