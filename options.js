@@ -31,7 +31,7 @@ class OptionsManager {
       this.rules = rulesResult.autoSwitchRules || [];
     } catch (error) {
       console.error('Failed to load data:', error);
-      this.showToast('加载数据失败', 'error');
+              this.showToast(chrome.i18n.getMessage('loadFailed'), 'error');
     }
   }
 
@@ -227,7 +227,7 @@ class OptionsManager {
         'regex': '正则'
       };
 
-      const profileName = rule.profile === 'direct' ? '直连' : 
+      const profileName = rule.profile === 'direct' ? chrome.i18n.getMessage('direct') : 
                          (this.profiles[rule.profile]?.displayName || rule.profile);
 
       ruleElement.innerHTML = `
@@ -797,8 +797,8 @@ class OptionsManager {
     const select = document.getElementById('ruleProfile');
     // 清空现有选项，保留默认选项
     select.innerHTML = `
-      <option value="">请选择代理配置</option>
-      <option value="direct">直连</option>
+              <option value="">${chrome.i18n.getMessage('selectProxy')}</option>
+              <option value="direct">${chrome.i18n.getMessage('direct')}</option>
     `;
     
     // 添加所有代理配置
@@ -855,7 +855,7 @@ class OptionsManager {
       return;
     }
     if (!profile) {
-      this.showToast('请选择代理配置', 'error');
+      this.showToast(chrome.i18n.getMessage('selectProxy'), 'error');
       return;
     }
     if (isNaN(priority) || priority < 1 || priority > 1000) {

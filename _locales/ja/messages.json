@@ -237,5 +237,16 @@
   },
   "ruleDeleted": {
     "message": "ルールが削除されました"
+  },
+  
+  "autoRule": {
+    "message": "自動"
+  },
+  "direct": {
+    "message": "直接"
+  },
+  
+  "selectProxy": {
+    "message": "プロキシ設定を選択してください"
   }
 } 

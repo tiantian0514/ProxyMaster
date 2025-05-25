@@ -237,5 +237,16 @@
   },
   "ruleDeleted": {
     "message": "规则已删除"
+  },
+  
+  "autoRule": {
+    "message": "自动"
+  },
+  "direct": {
+    "message": "直连"
+  },
+  
+  "selectProxy": {
+    "message": "请选择代理配置"
   }
 } 

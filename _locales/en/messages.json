@@ -237,5 +237,16 @@
   },
   "ruleDeleted": {
     "message": "Rule deleted"
+  },
+  
+  "autoRule": {
+    "message": "Auto"
+  },
+  "direct": {
+    "message": "Direct"
+  },
+  
+  "selectProxy": {
+    "message": "Please select proxy configuration"
   }
 } 

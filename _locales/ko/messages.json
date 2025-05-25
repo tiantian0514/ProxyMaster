@@ -237,5 +237,16 @@
   },
   "ruleDeleted": {
     "message": "규칙이 삭제되었습니다"
+  },
+  
+  "autoRule": {
+    "message": "자동"
+  },
+  "direct": {
+    "message": "직접"
+  },
+  
+  "selectProxy": {
+    "message": "프록시 구성을 선택하세요"
   }
 } 

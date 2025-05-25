@@ -112,8 +112,10 @@ class PopupManager {
     // 监听来自background的消息
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.action === 'profileSwitched') {
+        console.log('Received profileSwitched message:', message.profileName);
         this.currentProfile = message.profileName;
         this.renderProfiles();
+        this.updateStatus();
       }
     });
   }
@@ -253,8 +255,13 @@ class PopupManager {
       console.log('Switch response:', response);
 
       if (response && response.success) {
+        // 立即更新当前代理状态
         this.currentProfile = response.currentProfile || profileName;
+        console.log('Switch successful, updating to:', this.currentProfile);
+        
+        // 立即更新显示
         this.renderProfiles();
+        this.updateStatus();
         
         const displayName = profileName === 'direct' ? i18n('directConnection') : 
           (this.profiles[profileName]?.displayName || profileName);

@@ -24,6 +24,9 @@ class ProxyManager {
     // 初始化上下文菜单
     this.setupContextMenus();
     
+    // 预热代理连接（异步，不阻塞初始化）
+    this.warmupProxyConnections();
+    
     console.log('ProxyMaster initialized');
   }
 
@@ -37,7 +40,7 @@ class ProxyManager {
     if (!this.profiles.has('direct')) {
       this.profiles.set('direct', {
         name: 'direct',
-        displayName: '直接连接',
+        displayName: chrome.i18n.getMessage('directConnection'),
         type: 'direct'
       });
     }
@@ -72,6 +75,39 @@ class ProxyManager {
     }
     
     console.log(`📦 Preloaded ${cachedCount} proxy configurations`);
+  }
+
+  async warmupProxyConnections() {
+    console.log('🔥 Warming up proxy connections...');
+    
+    // 异步预热，不阻塞主流程
+    setTimeout(async () => {
+      for (const [profileName, profile] of this.profiles) {
+        if (profileName !== 'direct' && profile.host && profile.port) {
+          try {
+            console.log(`🌡️ Warming up proxy: ${profileName}`);
+            
+            // 简单的连接测试：尝试建立TCP连接
+            const testUrl = `http://${profile.host}:${profile.port}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒超时
+            
+            await fetch(testUrl, {
+              method: 'HEAD',
+              signal: controller.signal
+            }).catch(() => {
+              // 忽略错误，这只是预热
+            });
+            
+            clearTimeout(timeoutId);
+            console.log(`✅ Proxy ${profileName} warmed up`);
+          } catch (error) {
+            console.log(`⚠️ Proxy ${profileName} warmup failed:`, error.message);
+          }
+        }
+      }
+      console.log('🔥 Proxy warmup completed');
+    }, 1000); // 延迟1秒开始预热，避免影响启动速度
   }
 
   async waitForProxySwitch(targetProfile, maxWaitTime = 3000) {
@@ -149,9 +185,9 @@ class ProxyManager {
       currentProfile: this.currentProfile
     });
     
-    // 清理代理配置缓存，确保使用最新配置
-    this.proxyConfigCache.clear();
-    console.log(`🧹 Proxy config cache cleared`);
+    // 只在配置真正改变时才清理缓存，而不是每次保存都清理
+    // 这样可以保持性能优化
+    console.log(`💾 Profiles saved to storage`);
   }
 
   async loadAutoSwitchRules() {
@@ -163,21 +199,62 @@ class ProxyManager {
     });
   }
 
+  // 提取URL的域名，统一处理www前缀
+  extractDomain(url) {
+    try {
+      if (!url) return null;
+      const urlObj = new URL(url);
+      let hostname = urlObj.hostname;
+      
+      // 统一处理www前缀：www.example.com 和 example.com 视为同一域名
+      if (hostname.startsWith('www.')) {
+        hostname = hostname.substring(4);
+      }
+      
+      return hostname;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  // 判断是否应该拦截这个URL
+  shouldInterceptUrl(url) {
+    // 排除内部页面和扩展页面
+    if (url.startsWith('chrome://') || 
+        url.startsWith('chrome-extension://') ||
+        url.startsWith('devtools://') ||
+        url.startsWith('moz-extension://') ||
+        url.startsWith('edge://') ||
+        url === 'about:blank' ||
+        url === '') {
+      return false;
+    }
+    return true;
+  }
+
   setupEventListeners() {
     // 备用监听：标签页更新（仅用于状态同步）
-    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
       // 只处理页面加载完成的状态同步，主要逻辑已在webRequest中处理
       if (changeInfo.status === 'complete' && tab.url && !tab.url.startsWith('chrome://')) {
         // 确保标签页状态记录存在
         const tabState = this.tabStates.get(tabId);
         if (!tabState) {
           console.log(`📋 Syncing state for tab ${tabId}: ${tab.url}`);
+          
+          // 根据URL规则确定正确的代理，而不是使用当前全局代理
+          const matchedRule = this.findMatchingRule(tab.url);
+          const correctProxy = matchedRule ? matchedRule.profile : 'direct';
+          
           this.tabStates.set(tabId, {
-            proxy: this.currentProfile,
+            proxy: correctProxy,
             setBy: 'auto',
             timestamp: Date.now(),
-            lastProcessedUrl: tab.url
+            lastProcessedUrl: tab.url,
+            currentDomain: this.extractDomain(tab.url)
           });
+          
+          console.log(`📋 Tab ${tabId} synced with correct proxy: ${correctProxy}`);
         }
       }
     });
@@ -209,9 +286,23 @@ class ProxyManager {
 
     // 使用导航监听作为主要拦截点
     chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
-      if (details.frameId === 0 && !details.url.startsWith('chrome://')) {
-        console.log(`🚦 Navigation intercepted: ${details.url}`);
+      if (details.frameId === 0 && this.shouldInterceptUrl(details.url)) {
+        console.log(`🚦 Navigation intercepted (onBeforeNavigate): Tab ${details.tabId} → ${details.url}`);
+        console.log(`🔍 Navigation details:`, details);
         await this.handleNavigationIntercept(details.tabId, details.url);
+      }
+    });
+
+    // 备用拦截点：onCommitted
+    chrome.webNavigation.onCommitted.addListener(async (details) => {
+      if (details.frameId === 0 && this.shouldInterceptUrl(details.url)) {
+        console.log(`🚦 Navigation committed (onCommitted): Tab ${details.tabId} → ${details.url}`);
+        // 只在onBeforeNavigate没有处理的情况下处理
+        const tabState = this.tabStates.get(details.tabId);
+        if (!tabState || tabState.lastProcessedUrl !== details.url) {
+          console.log(`🔄 Processing navigation in onCommitted as backup`);
+          await this.handleNavigationIntercept(details.tabId, details.url);
+        }
       }
     });
 
@@ -251,81 +342,58 @@ class ProxyManager {
     }
   }
 
-  async handleNavigationIntercept(tabId, url, forceProfile = null) {
+
+
+  async handleNavigationIntercept(tabId, url) {
     try {
-      console.log(`🚦 Intercepting navigation: Tab ${tabId} → ${url}${forceProfile ? ` (forced: ${forceProfile})` : ''}`);
+      console.log(`🚦 Intercepting navigation: Tab ${tabId} → ${url}`);
       
+      // 快速检查：如果自动切换被禁用，直接返回
+      const autoSwitchEnabled = await this.isAutoSwitchEnabled();
+      if (!autoSwitchEnabled) {
+        console.log('⏭️ Auto switch disabled, allowing navigation');
+        return;
+      }
+
       // 获取当前标签页状态
       const currentTabState = this.tabStates.get(tabId);
       console.log(`📋 Current tab state:`, currentTabState);
 
-      // 防止重复处理：如果正在重定向或已经处理过相同URL，跳过
-      if (currentTabState) {
-        if (currentTabState.redirecting) {
-          console.log(`🔄 Tab ${tabId} is redirecting, skipping`);
-          return;
-        }
-        if (currentTabState.lastProcessedUrl === url && !forceProfile) {
-          console.log(`✅ URL already processed: ${url}`);
-          return;
-        }
+      // 防止重复处理：如果已经处理过相同URL，跳过（但延迟决策的除外）
+      if (currentTabState && currentTabState.lastProcessedUrl === url && !currentTabState.deferred) {
+        console.log(`✅ URL already processed: ${url}`);
+        return;
+      }
+      
+      // 检查是否是标签页切换导致的代理变更后的重新导航
+      // 如果当前代理已经正确，且URL已经匹配，则跳过处理
+      const matchedRule = this.findMatchingRule(url);
+      const expectedProfile = matchedRule ? matchedRule.profile : 'direct';
+      
+      if (this.currentProfile === expectedProfile) {
+        console.log(`✅ Proxy already correct for ${url}: ${expectedProfile}, skipping intercept`);
+        // 更新标签页状态但不重定向
+        this.tabStates.set(tabId, {
+          proxy: expectedProfile,
+          setBy: 'auto',
+          timestamp: Date.now(),
+          lastProcessedUrl: url,
+          currentDomain: this.extractDomain(url)
+        });
+        return;
       }
 
-      let targetProfile;
-      let setBy;
+      // 1. 使用已经找到的规则确定需要的代理
+      let targetProfile = expectedProfile; // 使用之前计算的代理
       
-      if (forceProfile) {
-        // 手工切换：使用强制指定的代理
-        targetProfile = forceProfile;
-        setBy = 'manual';
-        console.log(`👆 Manual switch: forcing ${targetProfile}`);
+      if (matchedRule) {
+        console.log(`🎯 Rule matched: ${matchedRule.name} → ${targetProfile}`);
       } else {
-        // 自动切换：检查自动切换是否启用
-        const autoSwitchEnabled = await this.isAutoSwitchEnabled();
-        if (!autoSwitchEnabled) {
-          console.log('⏭️ Auto switch disabled, allowing navigation');
-          return;
-        }
-        
-        // 检查URL，确定需要的代理
-        const matchedRule = this.findMatchingRule(url);
-        if (matchedRule) {
-          targetProfile = matchedRule.profile;
-          console.log(`🎯 Rule matched: ${matchedRule.name} → ${targetProfile}`);
-        } else {
-          targetProfile = 'direct';
-          console.log(`🔍 No rule matched for ${url}, using direct connection`);
-        }
-        setBy = 'auto';
+        console.log(`🔍 No rule matched for ${url}, using direct connection`);
       }
 
-      // 检查是否需要切换代理
-      const needSwitchProxy = this.currentProfile !== targetProfile;
-      
-      if (needSwitchProxy) {
-        console.log(`🔄 Need to switch proxy: ${this.currentProfile} → ${targetProfile} (${setBy})`);
-        
-        // 切换代理并重定向
-        await this.switchProxyAndRedirect(tabId, targetProfile, url, setBy);
-      } else {
-        console.log(`✅ Proxy already correct (${targetProfile}), allowing navigation`);
-        
-        // 更新处理记录
-        if (currentTabState) {
-          currentTabState.lastProcessedUrl = url;
-          if (forceProfile) {
-            currentTabState.setBy = 'manual';
-            currentTabState.timestamp = Date.now();
-          }
-        } else {
-          this.tabStates.set(tabId, {
-            proxy: targetProfile,
-            setBy: setBy,
-            timestamp: Date.now(),
-            lastProcessedUrl: url
-          });
-        }
-      }
+      // 使用统一的代理切换函数，传入新的目标URL
+      await this.unifiedProxySwitch(tabId, targetProfile, 'auto', url);
       
     } catch (error) {
       console.error('Error in handleNavigationIntercept:', error);
@@ -361,25 +429,25 @@ class ProxyManager {
           console.log(`✅ Global proxy already matches tab ${tabId} proxy: ${targetProxy}`);
         }
       } else {
-        // 新标签页，默认使用直连
-        console.log(`🆕 New tab ${tabId} has no state, setting to direct connection`);
-        console.log(`🆕 Tab URL: ${tab.url}`);
+        // 新标签页，延迟代理切换，等待用户输入URL后再决定
+        console.log(`🆕 New tab ${tabId}, deferring proxy decision until navigation`);
         this.tabStates.set(tabId, {
-          proxy: 'direct',
+          proxy: this.currentProfile, // 暂时使用当前代理，避免不必要的切换
           setBy: 'auto',
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          currentDomain: this.extractDomain(tab.url),
+          deferred: true // 标记为延迟决策
         });
-        console.log(`🆕 Set new tab ${tabId} state:`, this.tabStates.get(tabId));
         
-        if (this.currentProfile !== 'direct') {
-          console.log(`🔄 Switching global proxy to direct for new tab ${tabId}`);
-          await this.switchToProfile('direct', false, null, false);
+        // 不立即切换代理，等待导航时再决定
+        console.log(`⏳ Proxy decision deferred for new tab ${tabId}`);
     }
-  }
     } catch (error) {
       console.error('Error in handleTabActivated:', error);
     }
   }
+
+
 
   findMatchingRule(url) {
     console.log(`Finding matching rule for URL: ${url}`);
@@ -479,43 +547,156 @@ class ProxyManager {
     return this._autoFallbackCache.enabled;
   }
 
-  async setTabProxy(tabId, profileName, setBy = 'manual') {
-    console.log(`🔧 setTabProxy called: tabId=${tabId}, profileName=${profileName}, setBy=${setBy}`);
+  // 自动添加规则
+  async autoAddRule(domain, profile) {
+    // 检查是否已存在相同域名的规则
+    const existingRule = this.autoSwitchRules.find(rule => 
+      rule.type === 'domain' && rule.pattern === domain
+    );
     
-    // 显示当前标签页状态
-    const currentTabState = this.tabStates.get(tabId);
-    console.log(`📋 Current tab state before setTabProxy:`, currentTabState);
-    console.log(`🌐 Current global proxy:`, this.currentProfile);
-    
-    // 获取当前标签页信息
-    let currentUrl = null;
+    if (!existingRule) {
+      // 创建新规则
+      const newRule = {
+        name: `${chrome.i18n.getMessage('autoRule') || 'Auto'}-${domain}`,
+        type: 'domain',
+        pattern: domain,
+        profile: profile,
+        enabled: true,
+        priority: 100
+      };
+      this.autoSwitchRules.push(newRule);
+      // 保存规则
+      await chrome.storage.sync.set({ autoSwitchRules: this.autoSwitchRules });
+      console.log(`✅ Auto-created rule: ${domain} → ${profile}`);
+    }
+  }
+
+  // 统一的代理切换处理函数
+  async unifiedProxySwitch(tabId, targetProfile, switchType, providedUrl = null) {
     try {
-      const tab = await chrome.tabs.get(tabId);
-      currentUrl = tab.url;
-      console.log(`📄 Current tab URL:`, currentUrl);
-    } catch (error) {
-      console.warn('Could not get tab URL:', error);
-    }
-    
-    if (setBy === 'manual' && currentUrl && !currentUrl.startsWith('chrome://') && !currentUrl.startsWith('chrome-extension://')) {
-      // 手工切换：直接调用统一的切换逻辑
-      console.log(`🔄 Manual switch: forcing ${profileName} for ${currentUrl}`);
-      await this.handleNavigationIntercept(tabId, currentUrl, profileName); // 传入强制的代理配置
-      return true;
-    } else {
-      // 其他情况：只切换代理，不重定向
-      const success = await this.switchToProfile(profileName, setBy === 'manual', null, true);
-      if (success) {
-        // 记录标签页状态
-        this.tabStates.set(tabId, {
-          proxy: profileName,
-          setBy: setBy,
-          timestamp: Date.now(),
-          lastProcessedUrl: currentUrl
-        });
+      console.log(`🔄 Unified proxy switch: Tab ${tabId} → ${targetProfile} (${switchType})`);
+      
+      // 1. 优先级检查：只在同一域名内保护手工设置
+      const currentTabState = this.tabStates.get(tabId);
+      if (switchType === 'auto' && currentTabState && currentTabState.setBy === 'manual') {
+        // 检查是否是同一域名
+        const currentDomain = currentTabState.currentDomain || this.extractDomain(currentTabState.lastProcessedUrl || '');
+        const newDomain = this.extractDomain(providedUrl || targetUrl);
+        
+        if (currentDomain && newDomain && currentDomain === newDomain) {
+          console.log(`🛡️ Same domain (${currentDomain}), keeping manual setting`);
+          return false;
+        } else {
+          console.log(`🔄 Different domain: ${currentDomain} → ${newDomain}, allowing auto switch`);
+        }
       }
-      return success;
+      
+      // 2. 获取目标URL：优先级顺序
+      let targetUrl = providedUrl;
+      if (!targetUrl) {
+        // 对于手工切换，优先使用标签页状态中记录的最后尝试访问的URL
+        if (switchType === 'manual' && currentTabState && currentTabState.lastProcessedUrl) {
+          targetUrl = currentTabState.lastProcessedUrl;
+          console.log(`📋 Using last processed URL from tab state: ${targetUrl}`);
+        } else {
+          // 否则获取当前标签页URL
+          try {
+            const tab = await chrome.tabs.get(tabId);
+            targetUrl = tab.url;
+            console.log(`📄 Using current tab URL: ${targetUrl}`);
+          } catch (error) {
+            console.error(`❌ Failed to get tab ${tabId}:`, error);
+            return false;
+          }
+        }
+      }
+      
+      console.log(`🎯 Target URL for redirect: ${targetUrl}`);
+      
+      // 3. 防止重复处理同一个URL和代理组合
+      if (currentTabState && 
+          currentTabState.lastProcessedUrl === targetUrl && 
+          currentTabState.proxy === targetProfile) {
+        console.log(`✅ URL already processed with correct proxy: ${targetUrl}`);
+        return true;
+      }
+      
+      // 4. 检查是否需要切换代理
+      const needsSwitch = this.currentProfile !== targetProfile;
+      
+      if (needsSwitch) {
+        // 切换代理
+        const success = await this.switchToProfile(targetProfile, switchType === 'manual', null, false);
+        if (!success) {
+          console.error(`❌ Failed to switch proxy to ${targetProfile}`);
+          return false;
+        }
+        
+        // 对于自动切换，跳过等待确认以提升速度
+        if (switchType === 'manual') {
+          // 手工切换需要确认，确保用户操作的准确性
+          console.log(`⏳ Waiting for manual proxy switch confirmation...`);
+          const confirmed = await this.waitForProxySwitch(targetProfile);
+          if (!confirmed) {
+            console.error(`❌ Manual proxy switch confirmation failed for ${targetProfile}`);
+          }
+        } else {
+          // 自动切换信任API返回，不等待确认，提升速度
+          console.log(`⚡ Auto proxy switch completed, trusting API response`);
+        }
+        
+        console.log(`✅ Proxy switched to ${targetProfile}`);
+      } else {
+        console.log(`✅ Proxy already correct: ${targetProfile}`);
+      }
+      
+      // 5. 更新标签页状态
+      this.tabStates.set(tabId, {
+        proxy: targetProfile,
+        setBy: switchType,
+        timestamp: Date.now(),
+        lastProcessedUrl: targetUrl,
+        currentDomain: this.extractDomain(targetUrl)
+        // 清除deferred标记
+      });
+      
+      // 6. 只在需要切换代理时才重定向
+      if (needsSwitch) {
+        try {
+          // 检查是否可以重定向
+          if (!this.shouldInterceptUrl(targetUrl)) {
+            console.log(`⏭️ Skipping redirect for internal URL: ${targetUrl}`);
+            return true;
+          }
+          
+          console.log(`🧭 Redirecting to: ${targetUrl}`);
+          await chrome.tabs.update(tabId, { url: targetUrl });
+          console.log(`✅ Redirected successfully`);
+        } catch (error) {
+          console.error('Error during redirect:', error);
+        }
+      } else {
+        console.log(`⏭️ No redirect needed, proxy already correct`);
+      }
+      
+      // 8. 手工切换成功后，自动添加规则
+      if (switchType === 'manual') {
+        const domain = this.extractDomain(targetUrl);
+        if (domain) {
+          this.autoAddRule(domain, targetProfile);
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error in unifiedProxySwitch:', error);
+      return false;
     }
+  }
+
+  // 保留原有函数作为兼容性接口，内部调用统一函数
+  async setTabProxy(tabId, profileName, setBy = 'manual') {
+    return await this.unifiedProxySwitch(tabId, profileName, setBy);
   }
 
   async switchToProfile(profileName, isManual = true, targetTabId = null, updateTabState = true) {
@@ -615,19 +796,19 @@ class ProxyManager {
       // 立即更新徽章（这个很快）
       this.updateBadge(profileName);
       
-      // 异步更新其他状态，完全不阻塞
-      setTimeout(() => {
-        Promise.all([
-          this.saveProfiles(),
+      // 立即发送状态更新消息给popup
       chrome.runtime.sendMessage({
         action: 'profileSwitched',
         profileName: profileName
       }).catch(() => {
         // 忽略错误，popup可能没有打开
-          })
-        ]).catch(error => {
-          console.warn('Non-critical update failed:', error);
       });
+      
+      // 异步保存配置，不阻塞
+      setTimeout(() => {
+        this.saveProfiles().catch(error => {
+          console.warn('Failed to save profiles:', error);
+        });
       }, 0);
       
       return true;
@@ -638,6 +819,8 @@ class ProxyManager {
       return false;
     }
   }
+
+
 
   setupProxyAuth(auth) {
     // 避免重复添加认证监听器
@@ -670,67 +853,9 @@ class ProxyManager {
     console.log(`Badge updated: ${profileName} -> ${badgeText}`);
   }
 
-  async switchProxyAndRedirect(tabId, targetProfile, url, setBy) {
-    try {
-      console.log(`🔄 Switching proxy and redirecting: ${targetProfile} → ${url}`);
-      
-      // 防止重复处理同一个URL（手工切换除外）
-      const tabState = this.tabStates.get(tabId);
-      if (setBy !== 'manual' && tabState && tabState.lastProcessedUrl === url && tabState.proxy === targetProfile) {
-        console.log(`✅ URL already processed with correct proxy: ${url}`);
-        return;
-      }
-      
-      // 1. 切换代理
-      const success = await this.switchToProfile(targetProfile, false, null, false);
-      if (!success) {
-        console.error(`❌ Failed to switch proxy to ${targetProfile}`);
-        return;
-      }
-      
-      // 2. 等待代理切换确认生效
-      console.log(`⏳ Waiting for proxy switch confirmation...`);
-      const confirmed = await this.waitForProxySwitch(targetProfile);
-      if (!confirmed) {
-        console.error(`❌ Proxy switch confirmation failed for ${targetProfile}`);
-        return;
-      }
-      
-      // 3. 更新标签页状态
-      console.log(`📝 About to update tab ${tabId} state: proxy=${targetProfile}, setBy=${setBy}, url=${url}`);
-      this.tabStates.set(tabId, {
-        proxy: targetProfile,
-        setBy: setBy || 'auto', // 使用传入的setBy参数
-        timestamp: Date.now(),
-        lastProcessedUrl: url,
-        redirecting: true // 标记正在重定向
-      });
-      console.log(`📝 Updated tab ${tabId} state:`, this.tabStates.get(tabId));
-      
-      // 4. 确认代理生效后再重新导航
-      try {
-        console.log(`🧭 Proxy confirmed, redirecting to: ${url}`);
-        await chrome.tabs.update(tabId, { url: url });
-        console.log(`✅ Proxy switched and redirected successfully`);
-        
-        // 清除重定向标记
-        const currentState = this.tabStates.get(tabId);
-        if (currentState) {
-          delete currentState.redirecting;
-        }
-      } catch (error) {
-        console.error('Error during redirect:', error);
-        // 清除重定向标记
-        const currentState = this.tabStates.get(tabId);
-        if (currentState) {
-          delete currentState.redirecting;
-        }
-      }
-      
-    } catch (error) {
-      console.error('Error in switchProxyAndRedirect:', error);
-    }
-  }
+
+
+
 
   async handleWebRequest(details) {
     // 记录性能统计
@@ -806,6 +931,9 @@ class ProxyManager {
             return;
           }
           this.profiles.set(message.profile.name, message.profile);
+          // 清理缓存，因为添加了新的配置文件
+          this.proxyConfigCache.clear();
+          console.log(`🧹 Proxy config cache cleared due to profile addition`);
           await this.saveProfiles();
           console.log('Profile added:', message.profile.name);
           sendResponse({ success: true });
@@ -817,6 +945,9 @@ class ProxyManager {
             return;
           }
           this.profiles.delete(message.profileName);
+          // 清理缓存，因为删除了配置文件
+          this.proxyConfigCache.delete(message.profileName);
+          console.log(`🧹 Removed ${message.profileName} from proxy config cache`);
           await this.saveProfiles();
           console.log('Profile deleted:', message.profileName);
           sendResponse({ success: true });
@@ -847,6 +978,9 @@ class ProxyManager {
 
         case 'reloadProfiles':
           // 重新加载配置
+          // 清理缓存，因为要重新加载配置
+          this.proxyConfigCache.clear();
+          console.log(`🧹 Proxy config cache cleared due to profile reload`);
           await this.loadProfiles();
           await this.loadAutoSwitchRules();
           console.log('Profiles reloaded');
@@ -956,6 +1090,8 @@ class ProxyManager {
       return { success: false, error: error.message };
     }
   }
+
+
 
   showNotification(message) {
     chrome.notifications.create({
