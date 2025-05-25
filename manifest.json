@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ProxyMaster - 智能代理管理器",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "更强大的代理管理工具，支持智能切换、规则学习和性能优化",
   
   "permissions": [
