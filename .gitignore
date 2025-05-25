@@ -48,6 +48,7 @@ PUBLISH_CHECKLIST.md
 RELEASE_CHECKLIST.md
 STORE_LISTING.md
 GITHUB_RELEASE_*.md
+CHANGELOG.md
 
 # Project finder tools (separate project)
 project_finder*.py
