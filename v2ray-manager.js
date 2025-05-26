@@ -29,39 +29,113 @@ class V2RaySubscriptionManager {
     }
   }
 
+  // 从内容添加订阅
+  async addSubscriptionFromContent(content, name = '') {
+    try {
+      const nodes = this.parseSubscriptionContent(content);
+      
+      const subscription = {
+        id: Date.now().toString(),
+        name: name || '手动添加的订阅',
+        url: '',  // 空URL表示这是手动添加的订阅
+        nodes: nodes,
+        lastUpdate: Date.now(),
+        enabled: true
+      };
+      
+      this.subscriptions.push(subscription);
+      await this.saveSubscriptions();
+      
+      return { success: true, subscription, nodeCount: nodes.length };
+    } catch (error) {
+      console.error('Failed to add subscription from content:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // 获取并解析订阅内容
   async fetchAndParseSubscription(url) {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const content = await response.text();
+      
+      // 检查内容是否为空
+      if (!content || content.trim().length === 0) {
+        throw new Error('订阅内容为空');
+      }
+      
+      return this.parseSubscriptionContent(content);
+    } catch (error) {
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error('网络请求失败，可能是CORS限制或网络问题');
+      }
+      throw error;
     }
-    
-    const content = await response.text();
-    return this.parseSubscriptionContent(content);
   }
 
   // 解析订阅内容
   parseSubscriptionContent(content) {
     const nodes = [];
+    let decodedContent = content.trim();
     
     // 尝试Base64解码
-    let decodedContent;
-    try {
-      decodedContent = atob(content.trim());
-    } catch (e) {
-      decodedContent = content;
-    }
-    
-    const lines = decodedContent.split('\n').filter(line => line.trim());
-    
-    for (const line of lines) {
-      const node = this.parseNodeUrl(line.trim());
-      if (node) {
-        nodes.push(node);
+    if (this.isBase64(decodedContent)) {
+      try {
+        decodedContent = atob(decodedContent);
+        console.log('Successfully decoded Base64 content');
+      } catch (e) {
+        console.log('Base64 decode failed, treating as plain text');
       }
     }
     
+    // 分割行并过滤空行
+    const lines = decodedContent.split(/[\r\n]+/).filter(line => line.trim());
+    
+    console.log(`Processing ${lines.length} lines from subscription`);
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine) {
+        const node = this.parseNodeUrl(trimmedLine);
+        if (node) {
+          nodes.push(node);
+          console.log(`Parsed node: ${node.name} (${node.type})`);
+        } else {
+          console.log(`Failed to parse line: ${trimmedLine.substring(0, 50)}...`);
+        }
+      }
+    }
+    
+    console.log(`Total parsed nodes: ${nodes.length}`);
     return nodes;
+  }
+  
+  // 检查字符串是否为Base64编码
+  isBase64(str) {
+    try {
+      // Base64字符串只包含A-Z, a-z, 0-9, +, /, =
+      const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+      if (!base64Regex.test(str)) {
+        return false;
+      }
+      
+      // 尝试解码并重新编码，看是否一致
+      const decoded = atob(str);
+      const reencoded = btoa(decoded);
+      return reencoded === str;
+    } catch (e) {
+      return false;
+    }
   }
 
   // 解析节点URL
@@ -95,8 +169,7 @@ class V2RaySubscriptionManager {
         network: config.net || 'tcp',
         path: config.path || '',
         host: config.host || '',
-        tls: config.tls || '',
-        originalUrl: vmessUrl
+        tls: config.tls || ''
       };
     } catch (error) {
       console.error('Failed to parse VMess URL:', error);
@@ -119,8 +192,7 @@ class V2RaySubscriptionManager {
         encryption: params.get('encryption') || 'none',
         flow: params.get('flow') || '',
         network: params.get('type') || 'tcp',
-        security: params.get('security') || '',
-        originalUrl: vlessUrl
+        security: params.get('security') || ''
       };
     } catch (error) {
       console.error('Failed to parse VLESS URL:', error);
@@ -141,8 +213,7 @@ class V2RaySubscriptionManager {
         port: parseInt(url.port),
         password: url.username,
         sni: params.get('sni') || url.hostname,
-        allowInsecure: params.get('allowInsecure') === '1',
-        originalUrl: trojanUrl
+        allowInsecure: params.get('allowInsecure') === '1'
       };
     } catch (error) {
       console.error('Failed to parse Trojan URL:', error);
@@ -163,8 +234,7 @@ class V2RaySubscriptionManager {
         address: url.hostname,
         port: parseInt(url.port),
         method: method,
-        password: password,
-        originalUrl: ssUrl
+        password: password
       };
     } catch (error) {
       console.error('Failed to parse Shadowsocks URL:', error);
@@ -182,6 +252,55 @@ class V2RaySubscriptionManager {
       port: 1080, // 假设本地V2Ray监听1080端口
       nodeInfo: node
     };
+  }
+
+  // 生成直接代理配置（不需要本地V2Ray客户端）
+  generateDirectProxyConfig(node) {
+    // 对于某些简单的协议，可以直接使用
+    switch (node.type) {
+      case 'shadowsocks':
+        // Shadowsocks可以通过一些代理工具直接使用
+        return {
+          scheme: 'socks5',
+          host: node.address,
+          port: node.port,
+          auth: {
+            username: node.method,
+            password: node.password
+          },
+          nodeInfo: node,
+          requiresClient: false
+        };
+        
+      case 'trojan':
+        // Trojan也可以在某些情况下直接使用
+        return {
+          scheme: 'https',
+          host: node.address,
+          port: node.port,
+          auth: {
+            username: '',
+            password: node.password
+          },
+          nodeInfo: node,
+          requiresClient: false
+        };
+        
+      default:
+        // VMess和VLESS需要专门的客户端
+        return {
+          scheme: 'socks5',
+          host: '127.0.0.1',
+          port: 1080,
+          nodeInfo: node,
+          requiresClient: true,
+          clientInfo: {
+            message: '此节点需要V2Ray客户端支持',
+            downloadUrl: 'https://github.com/v2fly/v2ray-core/releases',
+            configFile: this.generateV2RayConfig(node)
+          }
+        };
+    }
   }
 
   // 生成V2Ray配置文件（供用户下载）
@@ -249,16 +368,104 @@ class V2RaySubscriptionManager {
 
   // 保存订阅数据
   async saveSubscriptions() {
-    await chrome.storage.sync.set({
-      v2raySubscriptions: this.subscriptions
-    });
+    try {
+      // 将订阅数据序列化
+      const dataString = JSON.stringify(this.subscriptions);
+      
+      // 如果数据较小，直接存储
+      if (dataString.length < 7000) { // 留一些余量
+        await chrome.storage.sync.set({
+          v2raySubscriptions: this.subscriptions,
+          v2raySubscriptionsChunked: false
+        });
+        return;
+      }
+      
+      // 数据较大时，分块存储
+      const chunkSize = 7000; // 每块7KB，留余量
+      const chunks = [];
+      
+      for (let i = 0; i < dataString.length; i += chunkSize) {
+        chunks.push(dataString.slice(i, i + chunkSize));
+      }
+      
+      // 清除旧的分块数据
+      const keysToRemove = [];
+      for (let i = 0; i < 50; i++) { // 最多清除50个分块
+        keysToRemove.push(`v2raySubscriptionsChunk_${i}`);
+      }
+      await chrome.storage.sync.remove(keysToRemove);
+      
+      // 保存新的分块数据
+      const saveData = {
+        v2raySubscriptions: null, // 清除旧的单一存储
+        v2raySubscriptionsChunked: true,
+        v2raySubscriptionsChunkCount: chunks.length
+      };
+      
+      chunks.forEach((chunk, index) => {
+        saveData[`v2raySubscriptionsChunk_${index}`] = chunk;
+      });
+      
+      await chrome.storage.sync.set(saveData);
+      console.log(`Subscriptions saved in ${chunks.length} chunks`);
+    } catch (error) {
+      console.error('Failed to save subscriptions:', error);
+      throw error;
+    }
   }
 
   // 加载订阅数据
   async loadSubscriptions() {
-    const result = await chrome.storage.sync.get(['v2raySubscriptions']);
-    this.subscriptions = result.v2raySubscriptions || [];
-    return this.subscriptions;
+    try {
+      const result = await chrome.storage.sync.get([
+        'v2raySubscriptions', 
+        'v2raySubscriptionsChunked', 
+        'v2raySubscriptionsChunkCount'
+      ]);
+      
+      // 如果不是分块存储，直接返回
+      if (!result.v2raySubscriptionsChunked) {
+        this.subscriptions = result.v2raySubscriptions || [];
+        return this.subscriptions;
+      }
+      
+      // 加载分块数据
+      const chunkCount = result.v2raySubscriptionsChunkCount || 0;
+      if (chunkCount === 0) {
+        this.subscriptions = [];
+        return this.subscriptions;
+      }
+      
+      const chunkKeys = [];
+      for (let i = 0; i < chunkCount; i++) {
+        chunkKeys.push(`v2raySubscriptionsChunk_${i}`);
+      }
+      
+      const chunkData = await chrome.storage.sync.get(chunkKeys);
+      
+      // 重组数据
+      let dataString = '';
+      for (let i = 0; i < chunkCount; i++) {
+        const chunk = chunkData[`v2raySubscriptionsChunk_${i}`];
+        if (chunk) {
+          dataString += chunk;
+        }
+      }
+      
+      if (dataString) {
+        this.subscriptions = JSON.parse(dataString);
+      } else {
+        this.subscriptions = [];
+      }
+      
+      console.log(`Subscriptions loaded from ${chunkCount} chunks`);
+      return this.subscriptions;
+    } catch (error) {
+      console.error('Failed to load subscriptions:', error);
+      this.subscriptions = [];
+      return this.subscriptions;
+    }
   }
 
   // 更新订阅

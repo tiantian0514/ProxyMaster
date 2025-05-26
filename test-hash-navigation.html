@@ -45,7 +45,7 @@
     <div class="test-section">
         <h2>当前URL状态</h2>
         <div class="current-hash" id="currentHash">当前锚点: 无</div>
-        <button onclick="updateHashDisplay()">刷新显示</button>
+        <button id="refreshBtn">刷新显示</button>
     </div>
 
     <div class="test-section">
@@ -64,12 +64,12 @@
         <h2>JavaScript测试</h2>
         <p>使用JavaScript动态改变锚点：</p>
         
-        <button onclick="testHash('auto-switch')">测试 auto-switch</button>
-        <button onclick="testHash('rules')">测试 rules</button>
-        <button onclick="testHash('profiles')">测试 profiles</button>
-        <button onclick="testHash('new-profile')">测试 new-profile</button>
-        <button onclick="testHash('stats')">测试 stats</button>
-        <button onclick="testHash('settings')">测试 settings</button>
+        <button data-hash="auto-switch">测试 auto-switch</button>
+        <button data-hash="rules">测试 rules</button>
+        <button data-hash="profiles">测试 profiles</button>
+        <button data-hash="new-profile">测试 new-profile</button>
+        <button data-hash="stats">测试 stats</button>
+        <button data-hash="settings">测试 settings</button>
     </div>
 
     <div class="test-section">
@@ -84,25 +84,6 @@
         </ul>
     </div>
 
-    <script>
-        function updateHashDisplay() {
-            const hash = window.location.hash || '无';
-            document.getElementById('currentHash').textContent = `当前锚点: ${hash}`;
-        }
-
-        function testHash(hashValue) {
-            window.location.hash = hashValue;
-            updateHashDisplay();
-        }
-
-        // 监听锚点变化
-        window.addEventListener('hashchange', updateHashDisplay);
-        
-        // 初始化显示
-        updateHashDisplay();
-
-        // 每秒更新一次显示（用于调试）
-        setInterval(updateHashDisplay, 1000);
-    </script>
+    <script src="test-hash-navigation.js"></script>
 </body>
 </html> 

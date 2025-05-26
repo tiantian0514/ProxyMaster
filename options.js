@@ -157,6 +157,13 @@ class OptionsManager {
       e.preventDefault();
       this.addSubscription();
     });
+
+    // 订阅添加方式切换
+    document.querySelectorAll('input[name="addMethod"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        this.toggleSubscriptionInputMethod(e.target.value);
+      });
+    });
   }
 
   switchTab(tabName) {
@@ -1153,6 +1160,30 @@ class OptionsManager {
   showAddSubscriptionModal() {
     document.getElementById('addSubscriptionModal').classList.add('show');
     document.getElementById('subscriptionForm').reset();
+    // 默认显示URL输入方式
+    this.toggleSubscriptionInputMethod('url');
+  }
+
+  toggleSubscriptionInputMethod(method) {
+    const urlGroup = document.getElementById('urlInputGroup');
+    const contentGroup = document.getElementById('contentInputGroup');
+    const autoUpdateGroup = document.getElementById('autoUpdateGroup');
+    const urlInput = document.getElementById('subscriptionUrl');
+    const contentInput = document.getElementById('subscriptionContent');
+
+    if (method === 'url') {
+      urlGroup.style.display = 'block';
+      contentGroup.style.display = 'none';
+      autoUpdateGroup.style.display = 'block';
+      urlInput.required = true;
+      contentInput.required = false;
+    } else {
+      urlGroup.style.display = 'none';
+      contentGroup.style.display = 'block';
+      autoUpdateGroup.style.display = 'none';
+      urlInput.required = false;
+      contentInput.required = true;
+    }
   }
 
   async addSubscription() {
@@ -1162,18 +1193,35 @@ class OptionsManager {
     }
 
     const name = document.getElementById('subscriptionName').value.trim();
-    const url = document.getElementById('subscriptionUrl').value.trim();
-    const autoUpdate = document.getElementById('subscriptionAutoUpdate').checked;
-
-    if (!name || !url) {
-      this.showToast('请填写完整信息', 'error');
+    const addMethod = document.querySelector('input[name="addMethod"]:checked').value;
+    
+    if (!name) {
+      this.showToast('请输入订阅名称', 'error');
       return;
     }
 
     try {
-      this.showToast('正在获取订阅内容...', 'info');
+      let result;
       
-      const result = await this.v2rayManager.addSubscription(url, name);
+      if (addMethod === 'url') {
+        const url = document.getElementById('subscriptionUrl').value.trim();
+        if (!url) {
+          this.showToast('请输入订阅链接', 'error');
+          return;
+        }
+        
+        this.showToast('正在获取订阅内容...', 'info');
+        result = await this.v2rayManager.addSubscription(url, name);
+      } else {
+        const content = document.getElementById('subscriptionContent').value.trim();
+        if (!content) {
+          this.showToast('请输入订阅内容', 'error');
+          return;
+        }
+        
+        this.showToast('正在解析订阅内容...', 'info');
+        result = await this.v2rayManager.addSubscriptionFromContent(content, name);
+      }
       
       if (result.success) {
         this.subscriptions = await this.v2rayManager.loadSubscriptions();
@@ -1257,6 +1305,10 @@ class OptionsManager {
 
     this.selectedNode = node;
     
+    // 检查节点是否需要客户端
+    const proxyConfig = this.v2rayManager.generateDirectProxyConfig(node);
+    const needsClient = proxyConfig.requiresClient;
+    
     const detailContent = document.getElementById('nodeDetailContent');
     detailContent.innerHTML = `
       <div class="form-group">
@@ -1275,6 +1327,27 @@ class OptionsManager {
         <label>端口</label>
         <input type="text" value="${node.port}" readonly>
       </div>
+      ${needsClient ? `
+        <div class="form-group">
+          <label style="color: #ff6b35;">⚠️ 使用说明</label>
+          <div style="background: #fff3f0; border: 1px solid #ffcdd2; border-radius: 4px; padding: 10px; font-size: 14px;">
+            <p style="margin: 0 0 8px 0; color: #d32f2f;">此节点需要V2Ray客户端支持：</p>
+            <ol style="margin: 0; padding-left: 20px; color: #666;">
+              <li>下载V2Ray客户端</li>
+              <li>导入节点配置文件</li>
+              <li>启动客户端监听1080端口</li>
+              <li>使用扩展连接到本地代理</li>
+            </ol>
+          </div>
+        </div>
+      ` : `
+        <div class="form-group">
+          <label style="color: #28a745;">✅ 使用说明</label>
+          <div style="background: #f0fff4; border: 1px solid #c3e6cb; border-radius: 4px; padding: 10px; font-size: 14px;">
+            <p style="margin: 0; color: #155724;">此节点可直接使用，无需额外客户端配置</p>
+          </div>
+        </div>
+      `}
       ${node.type === 'vmess' ? `
         <div class="form-group">
           <label>用户ID</label>
@@ -1300,6 +1373,15 @@ class OptionsManager {
     // 设置按钮事件
     const downloadBtn = document.getElementById('downloadConfigBtn');
     const useBtn = document.getElementById('useNodeBtn');
+    
+    // 更新按钮文本
+    if (needsClient) {
+      downloadBtn.textContent = '下载V2Ray配置';
+      useBtn.textContent = '添加配置（需客户端）';
+    } else {
+      downloadBtn.textContent = '导出配置';
+      useBtn.textContent = '直接使用';
+    }
     
     // 移除之前的事件监听器
     downloadBtn.replaceWith(downloadBtn.cloneNode(true));
@@ -1346,44 +1428,109 @@ class OptionsManager {
     const node = allNodes[nodeIndex];
     if (!node) return;
 
-    // 生成本地代理配置
-    const proxyConfig = this.v2rayManager.generateLocalProxyConfig(node);
+    // 生成直接代理配置
+    const proxyConfig = this.v2rayManager.generateDirectProxyConfig(node);
     
-    // 创建一个新的代理配置
-    const profileName = `v2ray-${node.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
-    const profile = {
-      name: profileName,
-      displayName: `V2Ray: ${node.name}`,
-      protocol: proxyConfig.scheme,
-      host: proxyConfig.host,
-      port: proxyConfig.port,
-      type: 'v2ray',
-      nodeInfo: node
-    };
+    if (proxyConfig.requiresClient) {
+      // 需要客户端的节点类型（VMess/VLESS）
+      const confirmMessage = `
+${proxyConfig.clientInfo.message}
 
-    try {
-      // 添加到代理配置列表
-      const response = await chrome.runtime.sendMessage({
-        action: 'addProfile',
-        profile: profile
-      });
+此节点类型需要您：
+1. 下载并安装V2Ray客户端
+2. 导入节点配置
+3. 启动客户端并监听1080端口
+4. 然后使用本扩展连接到127.0.0.1:1080
 
-      if (response && response.success) {
-        this.profiles[profileName] = profile;
-        this.renderProfiles();
-        this.closeModal('nodeDetailModal');
-        this.showToast(`节点已添加为代理配置: ${profile.displayName}`, 'success');
-        
-        // 提示用户需要在本地运行V2Ray客户端
-        setTimeout(() => {
-          this.showToast('请确保本地V2Ray客户端正在运行并监听端口1080', 'info');
-        }, 2000);
-      } else {
-        this.showToast('添加失败', 'error');
+是否继续添加此配置？
+      `.trim();
+      
+      if (!confirm(confirmMessage)) {
+        return;
       }
-    } catch (error) {
-      console.error('Failed to use node:', error);
-      this.showToast('使用节点失败', 'error');
+      
+      // 创建需要客户端的代理配置
+      const profileName = `v2ray-${node.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      const profile = {
+        name: profileName,
+        displayName: `V2Ray: ${node.name}`,
+        protocol: proxyConfig.scheme,
+        host: proxyConfig.host,
+        port: proxyConfig.port,
+        type: 'v2ray',
+        nodeInfo: node,
+        requiresClient: true
+      };
+
+      try {
+        const response = await chrome.runtime.sendMessage({
+          action: 'addProfile',
+          profile: profile
+        });
+
+        if (response && response.success) {
+          this.profiles[profileName] = profile;
+          this.renderProfiles();
+          this.closeModal('nodeDetailModal');
+          
+          // 提供详细的设置说明
+          this.showToast(`节点已添加: ${profile.displayName}`, 'success');
+          
+          setTimeout(() => {
+            this.showToast('⚠️ 请先配置V2Ray客户端并启动1080端口', 'info');
+          }, 2000);
+          
+          setTimeout(() => {
+            this.showToast('💡 可点击"详情"按钮下载配置文件', 'info');
+          }, 4000);
+        } else {
+          this.showToast('添加失败', 'error');
+        }
+      } catch (error) {
+        console.error('Failed to use node:', error);
+        this.showToast('使用节点失败', 'error');
+      }
+    } else {
+      // 可以直接使用的节点类型（Shadowsocks/Trojan）
+      const profileName = `${node.type}-${node.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      const profile = {
+        name: profileName,
+        displayName: `${node.type.toUpperCase()}: ${node.name}`,
+        protocol: proxyConfig.scheme,
+        host: proxyConfig.host,
+        port: proxyConfig.port,
+        type: node.type,
+        nodeInfo: node,
+        requiresClient: false
+      };
+
+      // 如果有认证信息，添加到配置中
+      if (proxyConfig.auth) {
+        profile.auth = proxyConfig.auth;
+      }
+
+      try {
+        const response = await chrome.runtime.sendMessage({
+          action: 'addProfile',
+          profile: profile
+        });
+
+        if (response && response.success) {
+          this.profiles[profileName] = profile;
+          this.renderProfiles();
+          this.closeModal('nodeDetailModal');
+          this.showToast(`节点已添加: ${profile.displayName}`, 'success');
+          
+          setTimeout(() => {
+            this.showToast('✅ 此节点可直接使用，无需额外客户端', 'success');
+          }, 2000);
+        } else {
+          this.showToast('添加失败', 'error');
+        }
+      } catch (error) {
+        console.error('Failed to use node:', error);
+        this.showToast('使用节点失败', 'error');
+      }
     }
   }
 }
