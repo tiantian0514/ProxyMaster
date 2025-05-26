@@ -19,6 +19,7 @@ class OptionsManager {
     this.renderRules();
     this.updateStats();
     this.loadSettings();
+    this.handleUrlHash(); // 处理URL锚点
   }
 
   async loadData() {
@@ -41,6 +42,11 @@ class OptionsManager {
       tab.addEventListener('click', () => {
         this.switchTab(tab.dataset.tab);
       });
+    });
+
+    // 监听浏览器前进/后退按钮
+    window.addEventListener('hashchange', () => {
+      this.handleUrlHash();
     });
 
     // 配置表单提交
@@ -132,6 +138,37 @@ class OptionsManager {
       content.classList.remove('active');
     });
     document.getElementById(tabName).classList.add('active');
+  }
+
+  // 处理URL锚点，自动跳转到对应标签页
+  handleUrlHash() {
+    const hash = window.location.hash.substring(1); // 移除 # 号
+    console.log('Current URL hash:', hash);
+    
+    // 定义锚点到标签页的映射
+    const hashToTab = {
+      'auto-switch': 'rules',
+      'rules': 'rules',
+      'profiles': 'profiles',
+      'stats': 'stats',
+      'settings': 'settings',
+      'new-profile': 'profiles'
+    };
+    
+    if (hash && hashToTab[hash]) {
+      console.log(`Switching to tab: ${hashToTab[hash]} based on hash: ${hash}`);
+      this.switchTab(hashToTab[hash]);
+      
+      // 如果是新建配置的锚点，自动打开新建配置模态框
+      if (hash === 'new-profile') {
+        setTimeout(() => {
+          this.showAddProfileModal();
+        }, 100);
+      }
+    } else {
+      // 默认显示第一个标签页（代理配置）
+      this.switchTab('profiles');
+    }
   }
 
   renderProfiles() {

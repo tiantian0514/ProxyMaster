@@ -269,6 +269,11 @@ class PopupManager {
         
         // 更新切换计数
         await this.incrementSwitchCount();
+        
+        // 切换成功后延迟关闭popup
+        setTimeout(() => {
+          window.close();
+        }, 800); // 给用户足够时间看到成功提示
       } else {
         this.showError(i18n('switchFailed') + ': ' + (response?.error || i18n('unknownError')));
       }
