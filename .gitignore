@@ -69,6 +69,14 @@ test_report.csv
 # Debug files
 debug.html
 
+# Test files (development only)
+test-*.html
+test-*.js
+test-*.py
+start-test-server.py
+CSP_FIX_SUMMARY.md
+V2RAY_SUBSCRIPTION_GUIDE.md
+
 # Screenshots folder (will be populated later)
 screenshots/.DS_Store
 
