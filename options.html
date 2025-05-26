@@ -316,6 +316,31 @@
       cursor: pointer;
       color: #666;
     }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #666;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .empty-state h4 {
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    .empty-state p {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .inactive {
+      opacity: 0.5;
+    }
   </style>
 </head>
 <body>
@@ -327,6 +352,7 @@
 
     <div class="nav-tabs">
       <button class="nav-tab active" data-tab="profiles">代理配置</button>
+      <button class="nav-tab" data-tab="v2ray">V2Ray订阅</button>
       <button class="nav-tab" data-tab="rules">自动切换</button>
       <button class="nav-tab" data-tab="stats">统计分析</button>
       <button class="nav-tab" data-tab="settings">高级设置</button>
@@ -341,6 +367,26 @@
         </div>
         <div class="profile-list" id="profileList">
           <!-- 配置列表将在这里动态生成 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- V2Ray订阅标签页 -->
+    <div class="tab-content" id="v2ray">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h3>V2Ray订阅管理</h3>
+          <button class="btn btn-primary" id="addSubscriptionBtn">➕ 添加订阅</button>
+        </div>
+        <div id="subscriptionsList">
+          <!-- 订阅列表将在这里动态生成 -->
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3>节点列表</h3>
+        <div id="nodesList">
+          <!-- 节点列表将在这里动态生成 -->
         </div>
       </div>
     </div>
@@ -530,9 +576,65 @@
     </div>
   </div>
 
+  <!-- 添加V2Ray订阅模态框 -->
+  <div class="modal" id="addSubscriptionModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>添加V2Ray订阅</h3>
+        <button class="close-btn" id="closeSubscriptionModalBtn">&times;</button>
+      </div>
+      <form id="subscriptionForm">
+        <div class="form-group">
+          <label>订阅名称</label>
+          <input type="text" id="subscriptionName" placeholder="例如：机场A、自建节点" required>
+          <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+            便于识别的订阅名称
+          </small>
+        </div>
+        <div class="form-group">
+          <label>订阅链接</label>
+          <input type="url" id="subscriptionUrl" placeholder="https://example.com/api/v1/client/subscribe?token=..." required>
+          <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+            支持V2Ray、VMess、VLESS、Trojan、Shadowsocks订阅链接
+          </small>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="subscriptionAutoUpdate" checked> 自动更新订阅
+          </label>
+          <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+            每24小时自动更新一次订阅内容
+          </small>
+        </div>
+        <div style="text-align: right;">
+          <button type="button" class="btn btn-secondary" id="cancelSubscriptionBtn">取消</button>
+          <button type="submit" class="btn btn-primary">添加订阅</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 节点详情模态框 -->
+  <div class="modal" id="nodeDetailModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>节点详情</h3>
+        <button class="close-btn" id="closeNodeDetailModalBtn">&times;</button>
+      </div>
+      <div id="nodeDetailContent">
+        <!-- 节点详情内容将在这里动态生成 -->
+      </div>
+      <div style="text-align: right; margin-top: 20px;">
+        <button type="button" class="btn btn-secondary" id="downloadConfigBtn">下载配置</button>
+        <button type="button" class="btn btn-primary" id="useNodeBtn">使用此节点</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast 通知 -->
   <div class="toast" id="toast"></div>
 
+  <script src="v2ray-manager.js"></script>
   <script src="options.js"></script>
 </body>
 </html> 

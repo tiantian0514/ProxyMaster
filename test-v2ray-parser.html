@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V2Ray订阅解析测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .input-group {
+            margin: 15px 0;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .input-group input, .input-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .input-group textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        .result {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .node-item {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .node-header {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .node-details {
+            font-size: 12px;
+            color: #666;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            color: #155724;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 V2Ray订阅解析测试</h1>
+    
+    <div class="test-section">
+        <h2>📋 测试说明</h2>
+        <p>这个页面用于测试V2Ray订阅链接的解析功能。您可以：</p>
+        <ul>
+            <li>测试单个节点URL的解析</li>
+            <li>测试完整订阅内容的解析</li>
+            <li>查看解析结果和生成的配置</li>
+            <li>下载生成的V2Ray配置文件</li>
+        </ul>
+        <p><strong>注意：</strong>这只是解析测试，不会实际连接到任何服务器。</p>
+    </div>
+
+    <div class="test-section">
+        <h2>🔗 单个节点URL测试</h2>
+        <div class="input-group">
+            <label>节点URL：</label>
+            <textarea id="nodeUrl" placeholder="粘贴VMess、VLESS、Trojan或Shadowsocks链接..."></textarea>
+        </div>
+        <button class="btn" onclick="parseNodeUrl()">解析节点</button>
+        <button class="btn btn-secondary" onclick="loadExampleNode()">加载示例</button>
+        
+        <div id="nodeResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📦 订阅内容测试</h2>
+        <div class="input-group">
+            <label>订阅内容（Base64编码或原始内容）：</label>
+            <textarea id="subscriptionContent" placeholder="粘贴订阅内容..."></textarea>
+        </div>
+        <button class="btn" onclick="parseSubscription()">解析订阅</button>
+        <button class="btn btn-secondary" onclick="loadExampleSubscription()">加载示例</button>
+        
+        <div id="subscriptionResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>⚙️ 配置文件生成</h2>
+        <p>选择一个已解析的节点来生成V2Ray配置文件：</p>
+        <div id="configGeneration"></div>
+    </div>
+
+    <script src="v2ray-manager.js"></script>
+    <script>
+        let manager;
+        let parsedNodes = [];
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            manager = new V2RaySubscriptionManager();
+        });
+
+        // 解析单个节点URL
+        function parseNodeUrl() {
+            const url = document.getElementById('nodeUrl').value.trim();
+            const resultDiv = document.getElementById('nodeResult');
+            
+            if (!url) {
+                resultDiv.innerHTML = '<div class="error">请输入节点URL</div>';
+                return;
+            }
+
+            try {
+                const node = manager.parseNodeUrl(url);
+                if (node) {
+                    resultDiv.innerHTML = `
+                        <div class="success">✅ 解析成功</div>
+                        <div class="node-item">
+                            <div class="node-header">${node.name}</div>
+                            <div class="node-details">
+                                <strong>类型：</strong>${node.type}<br>
+                                <strong>地址：</strong>${node.address}:${node.port}<br>
+                                ${node.type === 'vmess' ? `<strong>ID：</strong>${node.id}<br><strong>加密：</strong>${node.security}<br>` : ''}
+                                ${node.type === 'shadowsocks' ? `<strong>加密方法：</strong>${node.method}<br>` : ''}
+                            </div>
+                        </div>
+                        <button class="btn" onclick="generateConfig(${JSON.stringify(node).replace(/"/g, '&quot;')})">生成配置文件</button>
+                    `;
+                    parsedNodes = [node];
+                    updateConfigGeneration();
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ 无法解析此URL，请检查格式是否正确</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 解析错误: ${error.message}</div>`;
+            }
+        }
+
+        // 解析订阅内容
+        function parseSubscription() {
+            const content = document.getElementById('subscriptionContent').value.trim();
+            const resultDiv = document.getElementById('subscriptionResult');
+            
+            if (!content) {
+                resultDiv.innerHTML = '<div class="error">请输入订阅内容</div>';
+                return;
+            }
+
+            try {
+                const nodes = manager.parseSubscriptionContent(content);
+                if (nodes.length > 0) {
+                    let html = `<div class="success">✅ 解析成功，共找到 ${nodes.length} 个节点</div>`;
+                    
+                    nodes.forEach((node, index) => {
+                        html += `
+                            <div class="node-item">
+                                <div class="node-header">${node.name}</div>
+                                <div class="node-details">
+                                    <strong>类型：</strong>${node.type} | 
+                                    <strong>地址：</strong>${node.address}:${node.port}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    resultDiv.innerHTML = html;
+                    parsedNodes = nodes;
+                    updateConfigGeneration();
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ 未找到有效的节点配置</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 解析错误: ${error.message}</div>`;
+            }
+        }
+
+        // 更新配置生成区域
+        function updateConfigGeneration() {
+            const div = document.getElementById('configGeneration');
+            if (parsedNodes.length === 0) {
+                div.innerHTML = '<p style="color: #666;">请先解析一些节点</p>';
+                return;
+            }
+
+            let html = '<div style="margin-bottom: 15px;">';
+            parsedNodes.forEach((node, index) => {
+                html += `
+                    <button class="btn btn-secondary" onclick="generateConfig(${JSON.stringify(node).replace(/"/g, '&quot;')})">
+                        生成 ${node.name} 配置
+                    </button>
+                `;
+            });
+            html += '</div>';
+            
+            div.innerHTML = html;
+        }
+
+        // 生成配置文件
+        function generateConfig(node) {
+            try {
+                const config = manager.generateV2RayConfig(node);
+                const configJson = JSON.stringify(config, null, 2);
+                
+                // 创建下载链接
+                const blob = new Blob([configJson], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `v2ray-${node.name.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                // 显示配置内容
+                const div = document.getElementById('configGeneration');
+                div.innerHTML += `
+                    <div class="result">
+                        <strong>生成的V2Ray配置文件：</strong>
+                        ${configJson}
+                    </div>
+                `;
+            } catch (error) {
+                alert('生成配置失败: ' + error.message);
+            }
+        }
+
+        // 加载示例节点
+        function loadExampleNode() {
+            // 这是一个示例VMess链接（无效的，仅用于测试解析）
+            const exampleVmess = 'vmess://' + btoa(JSON.stringify({
+                "v": "2",
+                "ps": "测试节点-美国",
+                "add": "example.com",
+                "port": "443",
+                "id": "12345678-1234-1234-1234-123456789abc",
+                "aid": "0",
+                "scy": "auto",
+                "net": "ws",
+                "type": "none",
+                "host": "",
+                "path": "/path",
+                "tls": "tls"
+            }));
+            
+            document.getElementById('nodeUrl').value = exampleVmess;
+        }
+
+        // 加载示例订阅
+        function loadExampleSubscription() {
+            // 创建示例订阅内容
+            const exampleNodes = [
+                'vmess://' + btoa(JSON.stringify({
+                    "v": "2",
+                    "ps": "示例节点1-香港",
+                    "add": "hk.example.com",
+                    "port": "443",
+                    "id": "12345678-1234-1234-1234-123456789abc",
+                    "aid": "0",
+                    "scy": "auto",
+                    "net": "ws",
+                    "tls": "tls"
+                })),
+                'vmess://' + btoa(JSON.stringify({
+                    "v": "2", 
+                    "ps": "示例节点2-美国",
+                    "add": "us.example.com",
+                    "port": "80",
+                    "id": "87654321-4321-4321-4321-cba987654321",
+                    "aid": "0",
+                    "scy": "auto",
+                    "net": "tcp"
+                }))
+            ];
+            
+            const subscriptionContent = btoa(exampleNodes.join('\n'));
+            document.getElementById('subscriptionContent').value = subscriptionContent;
+        }
+    </script>
+</body>
+</html> 

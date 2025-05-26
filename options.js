@@ -8,15 +8,25 @@ class OptionsManager {
     this.editingRuleIndex = null;
     this.rulesListenerAdded = false;
     this.profilesListenerAdded = false;
+    this.v2rayManager = null;
+    this.subscriptions = [];
+    this.selectedNode = null;
     this.init();
   }
 
   async init() {
+    // 初始化V2Ray管理器
+    if (typeof V2RaySubscriptionManager !== 'undefined') {
+      this.v2rayManager = new V2RaySubscriptionManager();
+      await this.loadV2RayData();
+    }
+    
     await this.loadData();
     this.setupEventListeners();
     this.setupButtonListeners();
     this.renderProfiles();
     this.renderRules();
+    this.renderV2RaySubscriptions();
     this.updateStats();
     this.loadSettings();
     this.handleUrlHash(); // 处理URL锚点
@@ -124,6 +134,29 @@ class OptionsManager {
     document.getElementById('cancelRuleBtn')?.addEventListener('click', () => {
       this.closeModal('addRuleModal');
     });
+
+    // V2Ray订阅相关按钮
+    document.getElementById('addSubscriptionBtn')?.addEventListener('click', () => {
+      this.showAddSubscriptionModal();
+    });
+
+    document.getElementById('closeSubscriptionModalBtn')?.addEventListener('click', () => {
+      this.closeModal('addSubscriptionModal');
+    });
+
+    document.getElementById('cancelSubscriptionBtn')?.addEventListener('click', () => {
+      this.closeModal('addSubscriptionModal');
+    });
+
+    document.getElementById('closeNodeDetailModalBtn')?.addEventListener('click', () => {
+      this.closeModal('nodeDetailModal');
+    });
+
+    // V2Ray订阅表单提交
+    document.getElementById('subscriptionForm')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.addSubscription();
+    });
   }
 
   switchTab(tabName) {
@@ -150,6 +183,7 @@ class OptionsManager {
       'auto-switch': 'rules',
       'rules': 'rules',
       'profiles': 'profiles',
+      'v2ray': 'v2ray',
       'stats': 'stats',
       'settings': 'settings',
       'new-profile': 'profiles'
@@ -972,6 +1006,332 @@ class OptionsManager {
     setTimeout(() => {
       toast.classList.remove('show');
     }, 3000);
+  }
+
+  // V2Ray订阅管理方法
+  async loadV2RayData() {
+    if (!this.v2rayManager) return;
+    
+    try {
+      this.subscriptions = await this.v2rayManager.loadSubscriptions();
+    } catch (error) {
+      console.error('Failed to load V2Ray data:', error);
+    }
+  }
+
+  renderV2RaySubscriptions() {
+    if (!this.v2rayManager) return;
+    
+    const subscriptionsList = document.getElementById('subscriptionsList');
+    const nodesList = document.getElementById('nodesList');
+    
+    if (!subscriptionsList || !nodesList) return;
+
+    // 渲染订阅列表
+    if (this.subscriptions.length === 0) {
+      subscriptionsList.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">📡</div>
+          <h4>还没有V2Ray订阅</h4>
+          <p>点击"添加订阅"按钮开始添加你的第一个V2Ray订阅链接</p>
+        </div>
+      `;
+    } else {
+      subscriptionsList.innerHTML = '';
+      this.subscriptions.forEach((subscription, index) => {
+        const subscriptionElement = document.createElement('div');
+        subscriptionElement.className = `profile-item ${subscription.enabled ? '' : 'inactive'}`;
+        
+        const lastUpdate = new Date(subscription.lastUpdate).toLocaleString();
+        
+        subscriptionElement.innerHTML = `
+          <div style="display: flex; align-items: center;">
+            <div class="status-indicator ${subscription.enabled ? '' : 'inactive'}"></div>
+            <div class="profile-info">
+              <h4>${subscription.name}</h4>
+              <p>节点数量: ${subscription.nodes.length} | 最后更新: ${lastUpdate}</p>
+            </div>
+          </div>
+          <div class="profile-actions">
+            <button class="btn btn-secondary" onclick="optionsManager.updateSubscription('${subscription.id}')">更新</button>
+            <button class="btn btn-secondary" onclick="optionsManager.toggleSubscription('${subscription.id}')">${subscription.enabled ? '禁用' : '启用'}</button>
+            <button class="btn btn-danger" onclick="optionsManager.deleteSubscription('${subscription.id}')">删除</button>
+          </div>
+        `;
+        
+        subscriptionsList.appendChild(subscriptionElement);
+      });
+    }
+
+    // 渲染节点列表
+    const allNodes = this.v2rayManager.getAllNodes();
+    if (allNodes.length === 0) {
+      nodesList.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🌐</div>
+          <h4>没有可用节点</h4>
+          <p>请先添加订阅链接以获取节点列表</p>
+        </div>
+      `;
+    } else {
+      nodesList.innerHTML = '';
+      allNodes.forEach((node, index) => {
+        const nodeElement = document.createElement('div');
+        nodeElement.className = 'profile-item';
+        
+        const typeColors = {
+          'vmess': '#667eea',
+          'vless': '#764ba2',
+          'trojan': '#f093fb',
+          'shadowsocks': '#4facfe'
+        };
+        
+        nodeElement.innerHTML = `
+          <div style="display: flex; align-items: center;">
+            <div class="status-indicator" style="background: ${typeColors[node.type] || '#6c757d'}"></div>
+            <div class="profile-info">
+              <h4>${node.name}</h4>
+              <p>${node.type.toUpperCase()} | ${node.address}:${node.port}</p>
+            </div>
+          </div>
+          <div class="profile-actions">
+            <button class="btn btn-secondary" onclick="optionsManager.showNodeDetail('${index}')">详情</button>
+            <button class="btn btn-primary" onclick="optionsManager.useNode('${index}')">使用</button>
+          </div>
+        `;
+        
+        nodesList.appendChild(nodeElement);
+      });
+    }
+  }
+
+  showAddSubscriptionModal() {
+    document.getElementById('addSubscriptionModal').classList.add('show');
+    document.getElementById('subscriptionForm').reset();
+  }
+
+  async addSubscription() {
+    if (!this.v2rayManager) {
+      this.showToast('V2Ray管理器未初始化', 'error');
+      return;
+    }
+
+    const name = document.getElementById('subscriptionName').value.trim();
+    const url = document.getElementById('subscriptionUrl').value.trim();
+    const autoUpdate = document.getElementById('subscriptionAutoUpdate').checked;
+
+    if (!name || !url) {
+      this.showToast('请填写完整信息', 'error');
+      return;
+    }
+
+    try {
+      this.showToast('正在获取订阅内容...', 'info');
+      
+      const result = await this.v2rayManager.addSubscription(url, name);
+      
+      if (result.success) {
+        this.subscriptions = await this.v2rayManager.loadSubscriptions();
+        this.renderV2RaySubscriptions();
+        this.closeModal('addSubscriptionModal');
+        this.showToast(`订阅添加成功，共获取 ${result.nodeCount} 个节点`, 'success');
+      } else {
+        this.showToast(`添加失败: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('Failed to add subscription:', error);
+      this.showToast(`添加失败: ${error.message}`, 'error');
+    }
+  }
+
+  async updateSubscription(subscriptionId) {
+    if (!this.v2rayManager) return;
+
+    try {
+      this.showToast('正在更新订阅...', 'info');
+      
+      const result = await this.v2rayManager.updateSubscription(subscriptionId);
+      
+      if (result.success) {
+        this.subscriptions = await this.v2rayManager.loadSubscriptions();
+        this.renderV2RaySubscriptions();
+        this.showToast(`订阅更新成功，共获取 ${result.nodeCount} 个节点`, 'success');
+      } else {
+        this.showToast(`更新失败: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('Failed to update subscription:', error);
+      this.showToast(`更新失败: ${error.message}`, 'error');
+    }
+  }
+
+  async toggleSubscription(subscriptionId) {
+    if (!this.v2rayManager) return;
+
+    const subscription = this.subscriptions.find(s => s.id === subscriptionId);
+    if (!subscription) return;
+
+    subscription.enabled = !subscription.enabled;
+    
+    try {
+      await this.v2rayManager.saveSubscriptions();
+      this.renderV2RaySubscriptions();
+      this.showToast(`订阅已${subscription.enabled ? '启用' : '禁用'}`, 'success');
+    } catch (error) {
+      console.error('Failed to toggle subscription:', error);
+      this.showToast('操作失败', 'error');
+    }
+  }
+
+  async deleteSubscription(subscriptionId) {
+    if (!confirm('确定要删除这个订阅吗？')) return;
+    
+    if (!this.v2rayManager) return;
+
+    const index = this.subscriptions.findIndex(s => s.id === subscriptionId);
+    if (index === -1) return;
+
+    this.subscriptions.splice(index, 1);
+    
+    try {
+      await this.v2rayManager.saveSubscriptions();
+      this.renderV2RaySubscriptions();
+      this.showToast('订阅删除成功', 'success');
+    } catch (error) {
+      console.error('Failed to delete subscription:', error);
+      this.showToast('删除失败', 'error');
+    }
+  }
+
+  showNodeDetail(nodeIndex) {
+    if (!this.v2rayManager) return;
+
+    const allNodes = this.v2rayManager.getAllNodes();
+    const node = allNodes[nodeIndex];
+    if (!node) return;
+
+    this.selectedNode = node;
+    
+    const detailContent = document.getElementById('nodeDetailContent');
+    detailContent.innerHTML = `
+      <div class="form-group">
+        <label>节点名称</label>
+        <input type="text" value="${node.name}" readonly>
+      </div>
+      <div class="form-group">
+        <label>协议类型</label>
+        <input type="text" value="${node.type.toUpperCase()}" readonly>
+      </div>
+      <div class="form-group">
+        <label>服务器地址</label>
+        <input type="text" value="${node.address}" readonly>
+      </div>
+      <div class="form-group">
+        <label>端口</label>
+        <input type="text" value="${node.port}" readonly>
+      </div>
+      ${node.type === 'vmess' ? `
+        <div class="form-group">
+          <label>用户ID</label>
+          <input type="text" value="${node.id}" readonly>
+        </div>
+        <div class="form-group">
+          <label>加密方式</label>
+          <input type="text" value="${node.security}" readonly>
+        </div>
+        <div class="form-group">
+          <label>传输协议</label>
+          <input type="text" value="${node.network}" readonly>
+        </div>
+      ` : ''}
+      ${node.type === 'shadowsocks' ? `
+        <div class="form-group">
+          <label>加密方法</label>
+          <input type="text" value="${node.method}" readonly>
+        </div>
+      ` : ''}
+    `;
+
+    // 设置按钮事件
+    document.getElementById('downloadConfigBtn').onclick = () => {
+      this.downloadNodeConfig(node);
+    };
+
+    document.getElementById('useNodeBtn').onclick = () => {
+      this.useNode(nodeIndex);
+    };
+
+    document.getElementById('nodeDetailModal').classList.add('show');
+  }
+
+  downloadNodeConfig(node) {
+    if (!this.v2rayManager) return;
+
+    try {
+      const config = this.v2rayManager.generateV2RayConfig(node);
+      const configJson = JSON.stringify(config, null, 2);
+      
+      const blob = new Blob([configJson], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `v2ray-${node.name.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      this.showToast('配置文件下载成功', 'success');
+    } catch (error) {
+      console.error('Failed to download config:', error);
+      this.showToast('下载失败', 'error');
+    }
+  }
+
+  async useNode(nodeIndex) {
+    if (!this.v2rayManager) return;
+
+    const allNodes = this.v2rayManager.getAllNodes();
+    const node = allNodes[nodeIndex];
+    if (!node) return;
+
+    // 生成本地代理配置
+    const proxyConfig = this.v2rayManager.generateLocalProxyConfig(node);
+    
+    // 创建一个新的代理配置
+    const profileName = `v2ray-${node.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    const profile = {
+      name: profileName,
+      displayName: `V2Ray: ${node.name}`,
+      protocol: proxyConfig.scheme,
+      host: proxyConfig.host,
+      port: proxyConfig.port,
+      type: 'v2ray',
+      nodeInfo: node
+    };
+
+    try {
+      // 添加到代理配置列表
+      const response = await chrome.runtime.sendMessage({
+        action: 'addProfile',
+        profile: profile
+      });
+
+      if (response && response.success) {
+        this.profiles[profileName] = profile;
+        this.renderProfiles();
+        this.closeModal('nodeDetailModal');
+        this.showToast(`节点已添加为代理配置: ${profile.displayName}`, 'success');
+        
+        // 提示用户需要在本地运行V2Ray客户端
+        setTimeout(() => {
+          this.showToast('请确保本地V2Ray客户端正在运行并监听端口1080', 'info');
+        }, 2000);
+      } else {
+        this.showToast('添加失败', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to use node:', error);
+      this.showToast('使用节点失败', 'error');
+    }
   }
 }
 
