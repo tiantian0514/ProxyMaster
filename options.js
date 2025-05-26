@@ -1053,14 +1053,38 @@ class OptionsManager {
             </div>
           </div>
           <div class="profile-actions">
-            <button class="btn btn-secondary" onclick="optionsManager.updateSubscription('${subscription.id}')">更新</button>
-            <button class="btn btn-secondary" onclick="optionsManager.toggleSubscription('${subscription.id}')">${subscription.enabled ? '禁用' : '启用'}</button>
-            <button class="btn btn-danger" onclick="optionsManager.deleteSubscription('${subscription.id}')">删除</button>
+            <button class="btn btn-secondary" data-action="update-subscription" data-id="${subscription.id}">更新</button>
+            <button class="btn btn-secondary" data-action="toggle-subscription" data-id="${subscription.id}">${subscription.enabled ? '禁用' : '启用'}</button>
+            <button class="btn btn-danger" data-action="delete-subscription" data-id="${subscription.id}">删除</button>
           </div>
         `;
         
         subscriptionsList.appendChild(subscriptionElement);
       });
+    }
+
+    // 添加订阅列表事件监听器
+    if (!subscriptionsList.hasAttribute('data-listener-added')) {
+      subscriptionsList.addEventListener('click', (e) => {
+        const button = e.target.closest('button[data-action]');
+        if (!button) return;
+
+        const action = button.dataset.action;
+        const id = button.dataset.id;
+
+        switch (action) {
+          case 'update-subscription':
+            this.updateSubscription(id);
+            break;
+          case 'toggle-subscription':
+            this.toggleSubscription(id);
+            break;
+          case 'delete-subscription':
+            this.deleteSubscription(id);
+            break;
+        }
+      });
+      subscriptionsList.setAttribute('data-listener-added', 'true');
     }
 
     // 渲染节点列表
@@ -1095,13 +1119,34 @@ class OptionsManager {
             </div>
           </div>
           <div class="profile-actions">
-            <button class="btn btn-secondary" onclick="optionsManager.showNodeDetail('${index}')">详情</button>
-            <button class="btn btn-primary" onclick="optionsManager.useNode('${index}')">使用</button>
+            <button class="btn btn-secondary" data-action="show-node-detail" data-index="${index}">详情</button>
+            <button class="btn btn-primary" data-action="use-node" data-index="${index}">使用</button>
           </div>
         `;
         
         nodesList.appendChild(nodeElement);
       });
+    }
+
+    // 添加节点列表事件监听器
+    if (!nodesList.hasAttribute('data-listener-added')) {
+      nodesList.addEventListener('click', (e) => {
+        const button = e.target.closest('button[data-action]');
+        if (!button) return;
+
+        const action = button.dataset.action;
+        const index = button.dataset.index;
+
+        switch (action) {
+          case 'show-node-detail':
+            this.showNodeDetail(index);
+            break;
+          case 'use-node':
+            this.useNode(index);
+            break;
+        }
+      });
+      nodesList.setAttribute('data-listener-added', 'true');
     }
   }
 
@@ -1253,13 +1298,21 @@ class OptionsManager {
     `;
 
     // 设置按钮事件
-    document.getElementById('downloadConfigBtn').onclick = () => {
+    const downloadBtn = document.getElementById('downloadConfigBtn');
+    const useBtn = document.getElementById('useNodeBtn');
+    
+    // 移除之前的事件监听器
+    downloadBtn.replaceWith(downloadBtn.cloneNode(true));
+    useBtn.replaceWith(useBtn.cloneNode(true));
+    
+    // 重新获取按钮引用并添加事件监听器
+    document.getElementById('downloadConfigBtn').addEventListener('click', () => {
       this.downloadNodeConfig(node);
-    };
+    });
 
-    document.getElementById('useNodeBtn').onclick = () => {
+    document.getElementById('useNodeBtn').addEventListener('click', () => {
       this.useNode(nodeIndex);
-    };
+    });
 
     document.getElementById('nodeDetailModal').classList.add('show');
   }
