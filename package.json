@@ -4,7 +4,7 @@
   "description": "现代化的Chrome代理管理扩展程序，支持智能切换和多语言界面",
   "main": "background.js",
   "scripts": {
-    "zip": "zip -r ProxyMaster-v1.0.2.zip . -x '*.git*' 'node_modules/*' 'package*.json' '*.DS_Store'",
+    "zip": "zip -r ProxyMaster-v1.0.2.zip . -x '*.git*' 'node_modules/*' 'package*.json' '*.DS_Store' 'test-*' 'build/*' 'start-test-server.py' '*_GUIDE.md' 'CSP_FIX_SUMMARY.md' 'RELEASE_NOTES*.md'",
     "lint": "echo 'Linting not configured for this Chrome extension'",
     "test": "echo 'Testing not configured for this Chrome extension'"
   },
