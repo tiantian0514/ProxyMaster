@@ -76,6 +76,11 @@ class OptionsManager {
       this.updatePatternHelp(e.target.value);
     });
 
+    // 协议类型变化时切换配置字段
+    document.getElementById('profileProtocol').addEventListener('change', (e) => {
+      this.toggleProtocolFields(e.target.value);
+    });
+
     // 模态框外部点击关闭
     document.querySelectorAll('.modal').forEach(modal => {
       modal.addEventListener('click', (e) => {
@@ -406,45 +411,123 @@ class OptionsManager {
   }
 
   async saveProfile() {
-    // 获取表单数据
+    const protocol = document.getElementById('profileProtocol').value;
+    const isV2RayProtocol = ['vmess', 'vless', 'trojan', 'shadowsocks'].includes(protocol);
+    
+    // 获取基本表单数据
     const name = document.getElementById('profileName').value.trim();
     const displayName = document.getElementById('profileDisplayName').value.trim();
-    const protocol = document.getElementById('profileProtocol').value;
-    const host = document.getElementById('profileHost').value.trim();
-    const port = document.getElementById('profilePort').value;
-    const username = document.getElementById('profileUsername').value.trim();
-    const password = document.getElementById('profilePassword').value;
+    
+    let host, port, profile;
+    
+    if (isV2RayProtocol) {
+      // V2Ray协议配置
+      host = document.getElementById('v2rayHost').value.trim();
+      port = document.getElementById('v2rayPort').value;
+      const id = document.getElementById('v2rayId').value.trim();
+      const network = document.getElementById('v2rayNetwork').value;
+      const tls = document.getElementById('v2rayTls').checked;
+      
+      // 验证必填字段
+      if (!name) {
+        this.showToast('请输入配置名称', 'error');
+        return;
+      }
+      if (!host) {
+        this.showToast('请输入服务器地址', 'error');
+        return;
+      }
+      if (!port || isNaN(port) || port < 1 || port > 65535) {
+        this.showToast('请输入有效的端口号 (1-65535)', 'error');
+        return;
+      }
+      if (!id) {
+        this.showToast('请输入用户ID或密码', 'error');
+        return;
+      }
+      
+      // 构建V2Ray配置
+      profile = {
+        name: name,
+        displayName: displayName || name,
+        protocol: protocol,
+        host: host,
+        port: parseInt(port),
+        type: 'v2ray',
+        v2rayConfig: {
+          id: id,
+          network: network,
+          tls: tls
+        }
+      };
+      
+      // 添加协议特定配置
+      if (protocol === 'vmess') {
+        const alterId = parseInt(document.getElementById('v2rayAlterId').value) || 0;
+        profile.v2rayConfig.alterId = alterId;
+        profile.v2rayConfig.security = 'auto';
+      } else if (protocol === 'shadowsocks') {
+        const method = document.getElementById('v2rayMethod').value;
+        profile.v2rayConfig.method = method;
+        profile.v2rayConfig.password = id; // 对于SS，id字段存储密码
+      } else if (protocol === 'trojan') {
+        profile.v2rayConfig.password = id;
+      }
+      
+      // 添加WebSocket配置
+      if (network === 'ws') {
+        const wsPath = document.getElementById('v2rayWsPath').value.trim();
+        profile.v2rayConfig.wsPath = wsPath || '/';
+      }
+      
+      // 对于需要客户端的协议，设置本地代理
+      if (['vmess', 'vless'].includes(protocol)) {
+        profile.requiresClient = true;
+        profile.localProxy = {
+          host: '127.0.0.1',
+          port: 1080,
+          protocol: 'socks5'
+        };
+      }
+      
+    } else {
+      // 传统代理协议配置
+      host = document.getElementById('profileHost').value.trim();
+      port = document.getElementById('profilePort').value;
+      const username = document.getElementById('profileUsername').value.trim();
+      const password = document.getElementById('profilePassword').value;
+      
+      // 验证必填字段
+      if (!name) {
+        this.showToast('请输入配置名称', 'error');
+        return;
+      }
+      if (!host) {
+        this.showToast('请输入服务器地址', 'error');
+        return;
+      }
+      if (!port || isNaN(port) || port < 1 || port > 65535) {
+        this.showToast('请输入有效的端口号 (1-65535)', 'error');
+        return;
+      }
+      
+      profile = {
+        name: name,
+        displayName: displayName || name,
+        protocol: protocol,
+        host: host,
+        port: parseInt(port),
+      };
 
-    // 验证必填字段
-    if (!name) {
-      this.showToast('请输入配置名称', 'error');
-      return;
-    }
-    if (!host) {
-      this.showToast('请输入服务器地址', 'error');
-      return;
-    }
-    if (!port || isNaN(port) || port < 1 || port > 65535) {
-      this.showToast('请输入有效的端口号 (1-65535)', 'error');
-      return;
+      if (username && password) {
+        profile.auth = { username, password };
+      }
     }
 
     // 检查配置名称是否已存在（编辑模式下跳过此检查）
     if (!this.editingProfile && this.profiles[name]) {
       this.showToast('配置名称已存在，请使用其他名称', 'error');
       return;
-    }
-
-    const profile = {
-      name: name,
-      displayName: displayName || name,
-      protocol: protocol,
-      host: host,
-      port: parseInt(port),
-    };
-
-    if (username && password) {
-      profile.auth = { username, password };
     }
 
     try {
@@ -783,11 +866,14 @@ class OptionsManager {
     // 恢复模态框标题
     document.querySelector('#addProfileModal .modal-header h3').textContent = '新建代理配置';
     
-    // 显示模态框
-    document.getElementById('addProfileModal').classList.add('show');
-    
     // 重置表单
     document.getElementById('profileForm').reset();
+    
+    // 重置协议字段显示（默认显示传统代理字段）
+    this.toggleProtocolFields('http');
+    
+    // 显示模态框
+    document.getElementById('addProfileModal').classList.add('show');
   }
 
   showAddRuleModal() {
@@ -819,14 +905,43 @@ class OptionsManager {
       return;
     }
 
-    // 填充表单数据
+    // 填充基本表单数据
     document.getElementById('profileName').value = profileName;
     document.getElementById('profileDisplayName').value = profile.displayName || '';
     document.getElementById('profileProtocol').value = profile.protocol || 'http';
-    document.getElementById('profileHost').value = profile.host || '';
-    document.getElementById('profilePort').value = profile.port || '';
-    document.getElementById('profileUsername').value = profile.auth?.username || '';
-    document.getElementById('profilePassword').value = profile.auth?.password || '';
+    
+    // 根据协议类型填充不同的字段
+    const isV2RayProtocol = ['vmess', 'vless', 'trojan', 'shadowsocks'].includes(profile.protocol);
+    
+    if (isV2RayProtocol && profile.v2rayConfig) {
+      // V2Ray协议配置
+      document.getElementById('v2rayHost').value = profile.host || '';
+      document.getElementById('v2rayPort').value = profile.port || '';
+      document.getElementById('v2rayId').value = profile.v2rayConfig.id || profile.v2rayConfig.password || '';
+      document.getElementById('v2rayNetwork').value = profile.v2rayConfig.network || 'tcp';
+      document.getElementById('v2rayTls').checked = profile.v2rayConfig.tls || false;
+      
+      // 协议特定字段
+      if (profile.protocol === 'vmess') {
+        document.getElementById('v2rayAlterId').value = profile.v2rayConfig.alterId || 0;
+      } else if (profile.protocol === 'shadowsocks') {
+        document.getElementById('v2rayMethod').value = profile.v2rayConfig.method || 'aes-256-gcm';
+      }
+      
+      // WebSocket配置
+      if (profile.v2rayConfig.network === 'ws') {
+        document.getElementById('v2rayWsPath').value = profile.v2rayConfig.wsPath || '/';
+      }
+    } else {
+      // 传统代理协议配置
+      document.getElementById('profileHost').value = profile.host || '';
+      document.getElementById('profilePort').value = profile.port || '';
+      document.getElementById('profileUsername').value = profile.auth?.username || '';
+      document.getElementById('profilePassword').value = profile.auth?.password || '';
+    }
+
+    // 切换字段显示
+    this.toggleProtocolFields(profile.protocol || 'http');
 
     // 设置编辑模式
     this.editingProfile = profileName;
@@ -911,6 +1026,50 @@ class OptionsManager {
         helpText.textContent = '正则表达式：使用正则表达式进行高级匹配';
         patternInput.placeholder = '例如：^https?://.*\\.google\\.com/.*';
         break;
+    }
+  }
+
+  toggleProtocolFields(protocol) {
+    const traditionalFields = document.getElementById('traditionalProxyFields');
+    const v2rayFields = document.getElementById('v2rayProxyFields');
+    const vmessFields = document.getElementById('vmessFields');
+    const ssFields = document.getElementById('ssFields');
+    const wsFields = document.getElementById('wsFields');
+
+    const isV2RayProtocol = ['vmess', 'vless', 'trojan', 'shadowsocks'].includes(protocol);
+
+    if (isV2RayProtocol) {
+      traditionalFields.style.display = 'none';
+      v2rayFields.style.display = 'block';
+      
+      // 根据具体协议显示/隐藏特定字段
+      vmessFields.style.display = protocol === 'vmess' ? 'block' : 'none';
+      ssFields.style.display = protocol === 'shadowsocks' ? 'block' : 'none';
+      
+      // WebSocket字段根据传输协议动态显示
+      this.updateV2RayNetworkFields();
+      
+      // 为网络类型选择添加事件监听器
+      const networkSelect = document.getElementById('v2rayNetwork');
+      if (networkSelect && !networkSelect.hasAttribute('data-listener-added')) {
+        networkSelect.addEventListener('change', () => {
+          this.updateV2RayNetworkFields();
+        });
+        networkSelect.setAttribute('data-listener-added', 'true');
+      }
+    } else {
+      traditionalFields.style.display = 'block';
+      v2rayFields.style.display = 'none';
+    }
+  }
+
+  updateV2RayNetworkFields() {
+    const networkSelect = document.getElementById('v2rayNetwork');
+    const wsFields = document.getElementById('wsFields');
+    
+    if (networkSelect && wsFields) {
+      const network = networkSelect.value;
+      wsFields.style.display = network === 'ws' ? 'block' : 'none';
     }
   }
 

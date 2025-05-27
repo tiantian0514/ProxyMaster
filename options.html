@@ -496,27 +496,100 @@
         <div class="form-group">
           <label>协议类型</label>
           <select id="profileProtocol">
-            <option value="http">HTTP</option>
-            <option value="https">HTTPS</option>
-            <option value="socks4">SOCKS4</option>
-            <option value="socks5">SOCKS5</option>
+            <optgroup label="传统代理协议">
+              <option value="http">HTTP</option>
+              <option value="https">HTTPS</option>
+              <option value="socks4">SOCKS4</option>
+              <option value="socks5">SOCKS5</option>
+            </optgroup>
+            <optgroup label="V2Ray协议">
+              <option value="vmess">VMess</option>
+              <option value="vless">VLESS</option>
+              <option value="trojan">Trojan</option>
+              <option value="shadowsocks">Shadowsocks</option>
+            </optgroup>
           </select>
         </div>
-        <div class="form-group">
-          <label>服务器地址</label>
-          <input type="text" id="profileHost" required>
+        
+        <!-- 传统代理配置字段 -->
+        <div id="traditionalProxyFields">
+          <div class="form-group">
+            <label>服务器地址</label>
+            <input type="text" id="profileHost" required>
+          </div>
+          <div class="form-group">
+            <label>端口</label>
+            <input type="number" id="profilePort" required>
+          </div>
+          <div class="form-group">
+            <label>用户名（可选）</label>
+            <input type="text" id="profileUsername">
+          </div>
+          <div class="form-group">
+            <label>密码（可选）</label>
+            <input type="password" id="profilePassword">
+          </div>
         </div>
-        <div class="form-group">
-          <label>端口</label>
-          <input type="number" id="profilePort" required>
-        </div>
-        <div class="form-group">
-          <label>用户名（可选）</label>
-          <input type="text" id="profileUsername">
-        </div>
-        <div class="form-group">
-          <label>密码（可选）</label>
-          <input type="password" id="profilePassword">
+
+        <!-- V2Ray协议配置字段 -->
+        <div id="v2rayProxyFields" style="display: none;">
+          <div class="form-group">
+            <label>服务器地址</label>
+            <input type="text" id="v2rayHost" required>
+          </div>
+          <div class="form-group">
+            <label>端口</label>
+            <input type="number" id="v2rayPort" required>
+          </div>
+          <div class="form-group">
+            <label>用户ID / 密码</label>
+            <input type="text" id="v2rayId" placeholder="VMess/VLESS用户ID 或 Trojan/SS密码" required>
+            <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+              VMess/VLESS: 输入UUID格式的用户ID<br>
+              Trojan: 输入密码<br>
+              Shadowsocks: 输入密码
+            </small>
+          </div>
+          <div class="form-group" id="vmessFields" style="display: none;">
+            <label>额外ID (alterId)</label>
+            <input type="number" id="v2rayAlterId" value="0" min="0">
+            <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+              VMess协议的额外ID，通常为0
+            </small>
+          </div>
+          <div class="form-group" id="ssFields" style="display: none;">
+            <label>加密方式</label>
+            <select id="v2rayMethod">
+              <option value="aes-256-gcm">aes-256-gcm</option>
+              <option value="aes-128-gcm">aes-128-gcm</option>
+              <option value="chacha20-poly1305">chacha20-poly1305</option>
+              <option value="chacha20-ietf-poly1305">chacha20-ietf-poly1305</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>传输协议</label>
+            <select id="v2rayNetwork">
+              <option value="tcp">TCP</option>
+              <option value="ws">WebSocket</option>
+              <option value="h2">HTTP/2</option>
+              <option value="grpc">gRPC</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="v2rayTls"> 启用TLS加密
+            </label>
+          </div>
+          <div class="form-group" id="wsFields" style="display: none;">
+            <label>WebSocket路径</label>
+            <input type="text" id="v2rayWsPath" placeholder="例如: /ws">
+          </div>
+          <div class="alert alert-info" style="margin-top: 15px;">
+            <strong>💡 使用说明：</strong><br>
+            • <strong>VMess/VLESS</strong>: 需要本地V2Ray客户端支持，扩展会连接到127.0.0.1:1080<br>
+            • <strong>Trojan/Shadowsocks</strong>: 可直接使用，无需额外客户端<br>
+            • 建议优先使用V2Ray订阅功能，配置更简单准确
+          </div>
         </div>
         <div style="text-align: right;">
           <button type="button" class="btn btn-secondary" id="cancelProfileBtn">取消</button>
