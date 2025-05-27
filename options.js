@@ -1568,8 +1568,13 @@ class OptionsManager {
       const blob = new Blob([configJson], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
+      
+      // 生成安全的文件名
+      const safeName = node.name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 30);
+      const timestamp = new Date().toISOString().slice(0, 10);
+      a.download = `v2ray_${safeName}_${timestamp}.json`;
+      
       a.href = url;
-      a.download = `v2ray-${node.name.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
       a.click();
       URL.revokeObjectURL(url);
       
@@ -1609,7 +1614,8 @@ ${proxyConfig.clientInfo.message}
       }
       
       // 创建需要客户端的代理配置
-      const profileName = `v2ray-${node.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      const safeName = node.name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 30);
+      const profileName = `v2ray_${safeName}_${Date.now()}`;
       const profile = {
         name: profileName,
         displayName: `V2Ray: ${node.name}`,
@@ -1643,7 +1649,9 @@ ${proxyConfig.clientInfo.message}
             this.showToast('💡 可点击"详情"按钮下载配置文件', 'info');
           }, 4000);
         } else {
-          this.showToast('添加失败', 'error');
+          const errorMsg = response?.error || '添加失败';
+          console.error('Failed to add V2Ray profile:', response);
+          this.showToast(`添加失败: ${errorMsg}`, 'error');
         }
       } catch (error) {
         console.error('Failed to use node:', error);
@@ -1651,7 +1659,8 @@ ${proxyConfig.clientInfo.message}
       }
     } else {
       // 可以直接使用的节点类型（Shadowsocks/Trojan）
-      const profileName = `${node.type}-${node.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      const safeName = node.name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 30);
+      const profileName = `${node.type}_${safeName}_${Date.now()}`;
       const profile = {
         name: profileName,
         displayName: `${node.type.toUpperCase()}: ${node.name}`,
@@ -1684,7 +1693,9 @@ ${proxyConfig.clientInfo.message}
             this.showToast('✅ 此节点可直接使用，无需额外客户端', 'success');
           }, 2000);
         } else {
-          this.showToast('添加失败', 'error');
+          const errorMsg = response?.error || '添加失败';
+          console.error('Failed to add direct proxy profile:', response);
+          this.showToast(`添加失败: ${errorMsg}`, 'error');
         }
       } catch (error) {
         console.error('Failed to use node:', error);

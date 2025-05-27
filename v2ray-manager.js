@@ -103,20 +103,30 @@ class V2RaySubscriptionManager {
     
     console.log(`Processing ${lines.length} lines from subscription`);
     
+    let successCount = 0;
+    let failCount = 0;
+    
     for (const line of lines) {
       const trimmedLine = line.trim();
       if (trimmedLine) {
-        const node = this.parseNodeUrl(trimmedLine);
-        if (node) {
-          nodes.push(node);
-          console.log(`Parsed node: ${node.name} (${node.type})`);
-        } else {
-          console.log(`Failed to parse line: ${trimmedLine.substring(0, 50)}...`);
+        try {
+          const node = this.parseNodeUrl(trimmedLine);
+          if (node) {
+            nodes.push(node);
+            successCount++;
+            console.log(`✅ Parsed node: ${node.name} (${node.type})`);
+          } else {
+            failCount++;
+            console.log(`❌ Failed to parse line: ${trimmedLine.substring(0, 50)}...`);
+          }
+        } catch (error) {
+          failCount++;
+          console.error(`❌ Error parsing line: ${trimmedLine.substring(0, 50)}...`, error);
         }
       }
     }
     
-    console.log(`Total parsed nodes: ${nodes.length}`);
+    console.log(`📊 Parsing summary: ${successCount} success, ${failCount} failed, ${nodes.length} total nodes`);
     return nodes;
   }
   
@@ -224,20 +234,83 @@ class V2RaySubscriptionManager {
   // 解析Shadowsocks URL
   parseShadowsocksUrl(ssUrl) {
     try {
-      const url = new URL(ssUrl);
-      const userInfo = atob(url.username);
-      const [method, password] = userInfo.split(':');
+      // Shadowsocks URL格式: ss://base64(method:password)@server:port#name
+      // 或者: ss://method:password@server:port#name
+      
+      let url;
+      let method, password, server, port, name;
+      
+      // 尝试直接解析URL
+      try {
+        url = new URL(ssUrl);
+        server = url.hostname;
+        port = parseInt(url.port);
+        name = url.hash ? decodeURIComponent(url.hash.substring(1)) : `${server}:${port}`;
+        
+        // 检查用户信息是否是base64编码
+        const userInfo = url.username;
+        if (userInfo) {
+          try {
+            // 尝试base64解码
+            const decoded = atob(userInfo);
+            [method, password] = decoded.split(':');
+          } catch (e) {
+            // 如果不是base64，可能是明文格式
+            [method, password] = userInfo.split(':');
+          }
+        }
+      } catch (urlError) {
+        // 如果URL解析失败，尝试手动解析
+        console.log('URL parsing failed, trying manual parsing:', urlError);
+        
+        // 移除ss://前缀
+        let content = ssUrl.substring(5);
+        
+        // 分离名称部分
+        const hashIndex = content.indexOf('#');
+        if (hashIndex !== -1) {
+          name = decodeURIComponent(content.substring(hashIndex + 1));
+          content = content.substring(0, hashIndex);
+        }
+        
+        // 分离服务器和端口
+        const atIndex = content.indexOf('@');
+        if (atIndex !== -1) {
+          const userInfo = content.substring(0, atIndex);
+          const serverInfo = content.substring(atIndex + 1);
+          
+          // 解析服务器和端口
+          const colonIndex = serverInfo.lastIndexOf(':');
+          if (colonIndex !== -1) {
+            server = serverInfo.substring(0, colonIndex);
+            port = parseInt(serverInfo.substring(colonIndex + 1));
+          }
+          
+          // 解析用户信息
+          try {
+            const decoded = atob(userInfo);
+            [method, password] = decoded.split(':');
+          } catch (e) {
+            [method, password] = userInfo.split(':');
+          }
+        }
+      }
+      
+      // 验证必要字段
+      if (!method || !password || !server || !port) {
+        throw new Error('Missing required fields in Shadowsocks URL');
+      }
       
       return {
         type: 'shadowsocks',
-        name: decodeURIComponent(url.hash.substring(1)) || `${url.hostname}:${url.port}`,
-        address: url.hostname,
-        port: parseInt(url.port),
+        name: name || `${server}:${port}`,
+        address: server,
+        port: port,
         method: method,
         password: password
       };
     } catch (error) {
-      console.error('Failed to parse Shadowsocks URL:', error);
+      console.error('Failed to parse Shadowsocks URL:', error.message || error);
       return null;
     }
   }
