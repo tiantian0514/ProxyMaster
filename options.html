@@ -341,6 +341,116 @@
     .inactive {
       opacity: 0.5;
     }
+
+    /* 自定义单选按钮样式 */
+    .custom-radio {
+      position: relative;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 8px;
+      padding: 8px 0;
+    }
+
+    .custom-radio input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      cursor: pointer;
+      width: 0;
+      height: 0;
+    }
+
+    .custom-radio .radio-checkmark {
+      position: relative;
+      height: 18px;
+      width: 18px;
+      background-color: #fff;
+      border: 2px solid #ddd;
+      border-radius: 50%;
+      margin-right: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .custom-radio:hover .radio-checkmark {
+      border-color: #667eea;
+    }
+
+    .custom-radio input[type="radio"]:checked ~ .radio-checkmark {
+      background-color: #667eea;
+      border-color: #667eea;
+    }
+
+    .custom-radio .radio-checkmark:after {
+      content: "";
+      position: absolute;
+      display: none;
+      top: 50%;
+      left: 50%;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: white;
+      transform: translate(-50%, -50%);
+    }
+
+    .custom-radio input[type="radio"]:checked ~ .radio-checkmark:after {
+      display: block;
+    }
+
+    /* 自定义复选框样式 */
+    .custom-checkbox {
+      position: relative;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 8px;
+      padding: 8px 0;
+    }
+
+    .custom-checkbox input[type="checkbox"] {
+      position: absolute;
+      opacity: 0;
+      cursor: pointer;
+      width: 0;
+      height: 0;
+    }
+
+    .custom-checkbox .checkbox-checkmark {
+      position: relative;
+      height: 18px;
+      width: 18px;
+      background-color: #fff;
+      border: 2px solid #ddd;
+      border-radius: 3px;
+      margin-right: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .custom-checkbox:hover .checkbox-checkmark {
+      border-color: #667eea;
+    }
+
+    .custom-checkbox input[type="checkbox"]:checked ~ .checkbox-checkmark {
+      background-color: #667eea;
+      border-color: #667eea;
+    }
+
+    .custom-checkbox .checkbox-checkmark:after {
+      content: "";
+      position: absolute;
+      display: none;
+      left: 5px;
+      top: 2px;
+      width: 4px;
+      height: 8px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    .custom-checkbox input[type="checkbox"]:checked ~ .checkbox-checkmark:after {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -423,11 +533,103 @@
           <div class="stat-value" id="avgResponseTime">0ms</div>
           <div class="stat-label">平均响应时间</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-value" id="successRate">0%</div>
+          <div class="stat-label">成功率</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="totalTests">0</div>
+          <div class="stat-label">连接测试</div>
+        </div>
       </div>
       
+      <!-- 时间范围选择 -->
       <div class="card">
-        <h3>性能报告</h3>
-        <p>详细的性能分析功能正在开发中...</p>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h3>性能报告</h3>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <select id="statsTimeRange" style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px;">
+              <option value="1">最近1天</option>
+              <option value="7" selected>最近7天</option>
+              <option value="30">最近30天</option>
+            </select>
+            <button class="btn btn-secondary" id="refreshStatsBtn">🔄 刷新</button>
+            <button class="btn btn-secondary" id="exportStatsBtn">📊 导出数据</button>
+          </div>
+        </div>
+        
+        <!-- 性能监控状态 -->
+        <div id="performanceStatus" style="margin-bottom: 20px;">
+          <div class="alert alert-info" style="padding: 12px; background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; margin-bottom: 15px;">
+            <strong>💡 提示：</strong>
+            <span id="statusText">性能监控功能需要在高级设置中启用</span>
+            <button class="btn btn-primary" id="enableMonitoringBtn" style="margin-left: 10px; padding: 4px 12px; font-size: 12px;">启用监控</button>
+          </div>
+        </div>
+        
+        <!-- 图表容器 -->
+        <div id="chartsContainer">
+          <!-- 响应时间趋势 -->
+          <div class="chart-section" style="margin-bottom: 30px;">
+            <h4 style="margin-bottom: 15px;">📈 响应时间趋势</h4>
+            <div id="responseTimeChart" style="text-align: center; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+              <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <h4>暂无数据</h4>
+                <p>启用性能监控后，这里将显示响应时间趋势图</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 代理使用分布和请求量统计 -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+            <div class="chart-section">
+              <h4 style="margin-bottom: 15px;">🥧 代理使用分布</h4>
+              <div id="proxyUsageChart" style="text-align: center; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+                <div class="empty-state">
+                  <div class="empty-state-icon">📊</div>
+                  <h4>暂无数据</h4>
+                  <p>启用性能监控后显示</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="chart-section">
+              <h4 style="margin-bottom: 15px;">📊 请求量统计</h4>
+              <div id="requestVolumeChart" style="text-align: center; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+                <div class="empty-state">
+                  <div class="empty-state-icon">📊</div>
+                  <h4>暂无数据</h4>
+                  <p>启用性能监控后显示</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 24小时访问热力图 -->
+          <div class="chart-section" style="margin-bottom: 30px;">
+            <h4 style="margin-bottom: 15px;">🔥 24小时访问分布</h4>
+            <div id="hourlyHeatmapChart" style="text-align: center; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+              <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <h4>暂无数据</h4>
+                <p>启用性能监控后，这里将显示24小时访问热力图</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 热门网站排行 -->
+          <div class="chart-section">
+            <h4 style="margin-bottom: 15px;">🏆 热门网站排行</h4>
+            <div id="domainRankingChart" style="text-align: center; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+              <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <h4>暂无数据</h4>
+                <p>启用性能监控后，这里将显示最常访问的网站排行</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -436,26 +638,34 @@
       <div class="card">
         <h3>通用设置</h3>
         <div class="form-group">
-          <label>
-            <input type="checkbox" id="enableNotifications"> 启用通知
+          <label class="custom-checkbox">
+            <input type="checkbox" id="enableNotifications" name="enableNotifications">
+            <span class="checkbox-checkmark"></span>
+            启用通知
           </label>
         </div>
         <div class="form-group">
-          <label>
-            <input type="checkbox" id="enableAutoSwitch"> 启用智能切换
+          <label class="custom-checkbox">
+            <input type="checkbox" id="enableAutoSwitch" name="enableAutoSwitch">
+            <span class="checkbox-checkmark"></span>
+            启用智能切换
           </label>
         </div>
         <div class="form-group">
-          <label>
-            <input type="checkbox" id="enableAutoFallback"> 启用自动回退到直连
+          <label class="custom-checkbox">
+            <input type="checkbox" id="enableAutoFallback" name="enableAutoFallback">
+            <span class="checkbox-checkmark"></span>
+            启用自动回退到直连
           </label>
           <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
             当访问的网站没有匹配任何代理规则时，自动切换回直连模式
           </small>
         </div>
         <div class="form-group">
-          <label>
-            <input type="checkbox" id="enablePerformanceMonitoring"> 启用性能监控
+          <label class="custom-checkbox">
+            <input type="checkbox" id="enablePerformanceMonitoring" name="enablePerformanceMonitoring">
+            <span class="checkbox-checkmark"></span>
+            启用性能监控
           </label>
         </div>
         <button class="btn btn-primary" id="saveSettingsBtn">保存设置</button>
@@ -480,7 +690,7 @@
       <form id="profileForm">
         <div class="form-group">
           <label>配置名称</label>
-          <input type="text" id="profileName" placeholder="建议格式：US-高速、HK-专线、JP-游戏" required>
+          <input type="text" id="profileName" name="profileName" placeholder="建议格式：US-高速、HK-专线、JP-游戏" required>
           <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
             建议使用地区代码开头，如：US-高速、HK-专线、JP-游戏，便于识别和管理<br>
             常用代码：US-美国、HK-香港、JP-日本、SG-新加坡、UK-英国、DE-德国、KR-韩国、TW-台湾
@@ -488,14 +698,14 @@
         </div>
         <div class="form-group">
           <label>显示名称</label>
-          <input type="text" id="profileDisplayName" placeholder="美国高速代理、香港CN2专线、日本游戏加速">
+          <input type="text" id="profileDisplayName" name="profileDisplayName" placeholder="美国高速代理、香港CN2专线、日本游戏加速">
           <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
             用于界面显示的完整描述，便于理解代理用途和特点
           </small>
         </div>
         <div class="form-group">
           <label>协议类型</label>
-          <select id="profileProtocol">
+          <select id="profileProtocol" name="profileProtocol">
             <optgroup label="传统代理协议">
               <option value="http">HTTP</option>
               <option value="https">HTTPS</option>
@@ -515,19 +725,19 @@
         <div id="traditionalProxyFields">
           <div class="form-group">
             <label>服务器地址</label>
-            <input type="text" id="profileHost" required>
+            <input type="text" id="profileHost" name="profileHost" required>
           </div>
           <div class="form-group">
             <label>端口</label>
-            <input type="number" id="profilePort" required>
+            <input type="number" id="profilePort" name="profilePort" required>
           </div>
           <div class="form-group">
             <label>用户名（可选）</label>
-            <input type="text" id="profileUsername">
+            <input type="text" id="profileUsername" name="profileUsername">
           </div>
           <div class="form-group">
             <label>密码（可选）</label>
-            <input type="password" id="profilePassword">
+            <input type="password" id="profilePassword" name="profilePassword">
           </div>
         </div>
 
@@ -535,15 +745,15 @@
         <div id="v2rayProxyFields" style="display: none;">
           <div class="form-group">
             <label>服务器地址</label>
-            <input type="text" id="v2rayHost" required>
+            <input type="text" id="v2rayHost" name="v2rayHost" required>
           </div>
           <div class="form-group">
             <label>端口</label>
-            <input type="number" id="v2rayPort" required>
+            <input type="number" id="v2rayPort" name="v2rayPort" required>
           </div>
           <div class="form-group">
             <label>用户ID / 密码</label>
-            <input type="text" id="v2rayId" placeholder="VMess/VLESS用户ID 或 Trojan/SS密码" required>
+            <input type="text" id="v2rayId" name="v2rayId" placeholder="VMess/VLESS用户ID 或 Trojan/SS密码" required>
             <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
               VMess/VLESS: 输入UUID格式的用户ID<br>
               Trojan: 输入密码<br>
@@ -552,14 +762,14 @@
           </div>
           <div class="form-group" id="vmessFields" style="display: none;">
             <label>额外ID (alterId)</label>
-            <input type="number" id="v2rayAlterId" value="0" min="0">
+            <input type="number" id="v2rayAlterId" name="v2rayAlterId" value="0" min="0">
             <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
               VMess协议的额外ID，通常为0
             </small>
           </div>
           <div class="form-group" id="ssFields" style="display: none;">
             <label>加密方式</label>
-            <select id="v2rayMethod">
+            <select id="v2rayMethod" name="v2rayMethod">
               <option value="aes-256-gcm">aes-256-gcm</option>
               <option value="aes-128-gcm">aes-128-gcm</option>
               <option value="chacha20-poly1305">chacha20-poly1305</option>
@@ -568,7 +778,7 @@
           </div>
           <div class="form-group">
             <label>传输协议</label>
-            <select id="v2rayNetwork">
+            <select id="v2rayNetwork" name="v2rayNetwork">
               <option value="tcp">TCP</option>
               <option value="ws">WebSocket</option>
               <option value="h2">HTTP/2</option>
@@ -576,13 +786,15 @@
             </select>
           </div>
           <div class="form-group">
-            <label>
-              <input type="checkbox" id="v2rayTls"> 启用TLS加密
+            <label class="custom-checkbox">
+              <input type="checkbox" id="v2rayTls" name="v2rayTls">
+              <span class="checkbox-checkmark"></span>
+              启用TLS加密
             </label>
           </div>
           <div class="form-group" id="wsFields" style="display: none;">
             <label>WebSocket路径</label>
-            <input type="text" id="v2rayWsPath" placeholder="例如: /ws">
+            <input type="text" id="v2rayWsPath" name="v2rayWsPath" placeholder="例如: /ws">
           </div>
           <div class="alert alert-info" style="margin-top: 15px;">
             <strong>💡 使用说明：</strong><br>
@@ -609,11 +821,11 @@
       <form id="ruleForm">
         <div class="form-group">
           <label>规则名称</label>
-          <input type="text" id="ruleName" placeholder="例如：Google服务" required>
+          <input type="text" id="ruleName" name="ruleName" placeholder="例如：Google服务" required>
         </div>
         <div class="form-group">
           <label>匹配类型</label>
-          <select id="ruleType">
+          <select id="ruleType" name="ruleType">
             <option value="domain">域名匹配</option>
             <option value="url">URL匹配</option>
             <option value="wildcard">通配符匹配</option>
@@ -622,21 +834,21 @@
         </div>
         <div class="form-group">
           <label>匹配模式</label>
-          <input type="text" id="rulePattern" placeholder="例如：*.google.com" required>
+          <input type="text" id="rulePattern" name="rulePattern" placeholder="例如：*.google.com" required>
           <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
             <span id="patternHelp">域名匹配：支持通配符，如 *.google.com</span>
           </small>
         </div>
         <div class="form-group">
           <label>使用代理</label>
-          <select id="ruleProfile" required>
+          <select id="ruleProfile" name="ruleProfile" required>
             <option value="">请选择代理配置</option>
             <option value="direct">直连</option>
           </select>
         </div>
         <div class="form-group">
           <label>优先级</label>
-          <input type="number" id="rulePriority" value="100" min="1" max="1000">
+          <input type="number" id="rulePriority" name="rulePriority" value="100" min="1" max="1000">
           <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
             数值越大优先级越高，范围：1-1000
           </small>
@@ -659,7 +871,7 @@
       <form id="subscriptionForm">
         <div class="form-group">
           <label>订阅名称</label>
-          <input type="text" id="subscriptionName" placeholder="例如：机场A、自建节点" required>
+          <input type="text" id="subscriptionName" name="subscriptionName" placeholder="例如：机场A、自建节点" required>
           <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
             便于识别的订阅名称
           </small>
@@ -668,12 +880,16 @@
         <!-- 添加方式选择 -->
         <div class="form-group">
           <label>添加方式</label>
-          <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
-            <label style="display: flex; align-items: center; cursor: pointer; padding: 8px 0;">
-              <input type="radio" name="addMethod" value="url" checked style="margin-right: 8px;"> 订阅链接
+          <div>
+            <label class="custom-radio">
+              <input type="radio" name="addMethod" value="url" checked>
+              <span class="radio-checkmark"></span>
+              订阅链接
             </label>
-            <label style="display: flex; align-items: center; cursor: pointer; padding: 8px 0;">
-              <input type="radio" name="addMethod" value="content" style="margin-right: 8px;"> 手动输入内容
+            <label class="custom-radio">
+              <input type="radio" name="addMethod" value="content">
+              <span class="radio-checkmark"></span>
+              手动输入内容
             </label>
           </div>
         </div>
@@ -681,7 +897,7 @@
         <!-- 订阅链接输入 -->
         <div class="form-group" id="urlInputGroup">
           <label>订阅链接</label>
-          <input type="url" id="subscriptionUrl" placeholder="https://example.com/api/v1/client/subscribe?token=...">
+          <input type="url" id="subscriptionUrl" name="subscriptionUrl" placeholder="https://example.com/api/v1/client/subscribe?token=...">
           <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
             支持V2Ray、VMess、VLESS、Trojan、Shadowsocks订阅链接
           </small>
@@ -690,15 +906,17 @@
         <!-- 手动输入内容 -->
         <div class="form-group" id="contentInputGroup" style="display: none;">
           <label>订阅内容</label>
-          <textarea id="subscriptionContent" placeholder="粘贴订阅内容（支持Base64编码或原始格式）..." style="height: 120px; resize: vertical;"></textarea>
+          <textarea id="subscriptionContent" name="subscriptionContent" placeholder="粘贴订阅内容（支持Base64编码或原始格式）..." style="height: 120px; resize: vertical;"></textarea>
           <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
             如果订阅链接因CORS限制无法访问，可以手动复制订阅内容到这里
           </small>
         </div>
 
         <div class="form-group" id="autoUpdateGroup">
-          <label>
-            <input type="checkbox" id="subscriptionAutoUpdate" checked> 自动更新订阅
+          <label class="custom-checkbox">
+            <input type="checkbox" id="subscriptionAutoUpdate" name="subscriptionAutoUpdate" checked>
+            <span class="checkbox-checkmark"></span>
+            自动更新订阅
           </label>
           <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
             每24小时自动更新一次订阅内容（仅适用于订阅链接）
@@ -732,6 +950,8 @@
   <!-- Toast 通知 -->
   <div class="toast" id="toast"></div>
 
+  <script src="performance-monitor.js"></script>
+  <script src="performance-charts.js"></script>
   <script src="v2ray-manager.js"></script>
   <script src="options.js"></script>
 </body>

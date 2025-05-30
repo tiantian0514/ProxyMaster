@@ -30,6 +30,11 @@ class OptionsManager {
     this.updateStats();
     this.loadSettings();
     this.handleUrlHash(); // 处理URL锚点
+    
+    // 初始化性能报告功能
+    if (typeof PerformanceMonitor !== 'undefined' && typeof PerformanceCharts !== 'undefined') {
+      await this.initPerformanceReports();
+    }
   }
 
   async loadData() {
@@ -678,7 +683,7 @@ class OptionsManager {
 
       const data = {
         // 基本信息
-        version: '1.0.0',
+        version: chrome.runtime.getManifest().version,
         exportTime: new Date().toISOString(),
         
         // 代理配置
@@ -733,6 +738,7 @@ class OptionsManager {
       input.type = 'file';
       input.accept = '.json';
       input.style.display = 'none';
+      input.name = 'importFile';
       
       input.onchange = async (e) => {
         const file = e.target.files[0];
@@ -1038,9 +1044,26 @@ class OptionsManager {
 
     const isV2RayProtocol = ['vmess', 'vless', 'trojan', 'shadowsocks'].includes(protocol);
 
+    // 传统代理字段的required控制
+    const traditionalRequiredFields = ['profileHost', 'profilePort'];
+    // V2Ray字段的required控制
+    const v2rayRequiredFields = ['v2rayHost', 'v2rayPort', 'v2rayId'];
+
     if (isV2RayProtocol) {
       traditionalFields.style.display = 'none';
       v2rayFields.style.display = 'block';
+      
+      // 移除传统代理字段的required属性
+      traditionalRequiredFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) field.removeAttribute('required');
+      });
+      
+      // 添加V2Ray字段的required属性
+      v2rayRequiredFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) field.setAttribute('required', '');
+      });
       
       // 根据具体协议显示/隐藏特定字段
       vmessFields.style.display = protocol === 'vmess' ? 'block' : 'none';
@@ -1060,6 +1083,18 @@ class OptionsManager {
     } else {
       traditionalFields.style.display = 'block';
       v2rayFields.style.display = 'none';
+      
+      // 添加传统代理字段的required属性
+      traditionalRequiredFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) field.setAttribute('required', '');
+      });
+      
+      // 移除V2Ray字段的required属性
+      v2rayRequiredFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) field.removeAttribute('required');
+      });
     }
   }
 
@@ -1701,6 +1736,263 @@ ${proxyConfig.clientInfo.message}
         console.error('Failed to use node:', error);
         this.showToast('使用节点失败', 'error');
       }
+    }
+  }
+
+  // ==================== 性能报告功能 ====================
+  
+  async initPerformanceReports() {
+    // 初始化性能监控器和图表
+    this.performanceMonitor = new PerformanceMonitor();
+    this.performanceCharts = new PerformanceCharts();
+    
+    // 设置性能报告相关的事件监听器
+    this.setupPerformanceEventListeners();
+    
+    // 检查监控状态
+    await this.updatePerformanceStatus();
+    
+    // 如果监控已启用，加载数据
+    const settings = await chrome.storage.sync.get(['enablePerformanceMonitoring']);
+    if (settings.enablePerformanceMonitoring !== false) {
+      await this.loadPerformanceData();
+    }
+  }
+
+  setupPerformanceEventListeners() {
+    // 启用监控按钮
+    document.getElementById('enableMonitoringBtn')?.addEventListener('click', async () => {
+      await this.enablePerformanceMonitoring();
+    });
+
+    // 刷新统计按钮
+    document.getElementById('refreshStatsBtn')?.addEventListener('click', async () => {
+      await this.loadPerformanceData();
+    });
+
+    // 导出数据按钮
+    document.getElementById('exportStatsBtn')?.addEventListener('click', async () => {
+      await this.exportPerformanceData();
+    });
+
+    // 时间范围选择
+    document.getElementById('statsTimeRange')?.addEventListener('change', async (e) => {
+      await this.loadPerformanceData();
+    });
+  }
+
+  async updatePerformanceStatus() {
+    const settings = await chrome.storage.sync.get(['enablePerformanceMonitoring']);
+    const isEnabled = settings.enablePerformanceMonitoring !== false;
+    
+    const statusText = document.getElementById('statusText');
+    const enableBtn = document.getElementById('enableMonitoringBtn');
+    
+    if (isEnabled) {
+      statusText.textContent = '性能监控已启用，正在收集数据...';
+      enableBtn.style.display = 'none';
+    } else {
+      statusText.textContent = '性能监控功能需要在高级设置中启用';
+      enableBtn.style.display = 'inline-block';
+    }
+  }
+
+  async enablePerformanceMonitoring() {
+    try {
+      // 启用性能监控
+      await chrome.storage.sync.set({ enablePerformanceMonitoring: true });
+      
+      // 更新状态
+      await this.updatePerformanceStatus();
+      
+      // 重新初始化监控器
+      if (this.performanceMonitor) {
+        await this.performanceMonitor.setEnabled(true);
+      }
+      
+      this.showToast('性能监控已启用', 'success');
+      
+      // 延迟加载数据，给监控器一些时间收集数据
+      setTimeout(() => {
+        this.loadPerformanceData();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Failed to enable performance monitoring:', error);
+      this.showToast('启用性能监控失败', 'error');
+    }
+  }
+
+  async loadPerformanceData() {
+    try {
+      if (!this.performanceMonitor) {
+        console.warn('Performance monitor not initialized');
+        return;
+      }
+
+      // 获取时间范围
+      const timeRange = parseInt(document.getElementById('statsTimeRange')?.value || '7');
+      const endDate = new Date();
+      const startDate = new Date(endDate.getTime() - timeRange * 24 * 60 * 60 * 1000);
+
+      // 获取性能统计数据
+      const stats = await this.performanceMonitor.getPerformanceStats({
+        startDate,
+        endDate
+      });
+
+      if (!stats) {
+        this.showEmptyCharts();
+        return;
+      }
+
+      // 更新统计卡片
+      this.updateStatsCards(stats);
+
+      // 渲染图表
+      this.renderPerformanceCharts(stats);
+
+    } catch (error) {
+      console.error('Failed to load performance data:', error);
+      this.showToast('加载性能数据失败', 'error');
+      this.showEmptyCharts();
+    }
+  }
+
+  updateStatsCards(stats) {
+    const summary = stats.summary || {};
+    const performance = stats.performance || {};
+
+    // 更新统计卡片
+    document.getElementById('totalRequests').textContent = this.formatNumber(summary.totalRequests || 0);
+    document.getElementById('totalSwitches').textContent = this.formatNumber(summary.totalSwitches || 0);
+    document.getElementById('avgResponseTime').textContent = `${performance.avgResponseTime || 0}ms`;
+    document.getElementById('successRate').textContent = `${summary.successRate || 0}%`;
+    document.getElementById('totalTests').textContent = this.formatNumber(summary.totalTests || 0);
+    
+    // 活跃配置数量（从现有配置计算）
+    const activeProfiles = Object.keys(this.profiles).length;
+    document.getElementById('activeProfiles').textContent = this.formatNumber(activeProfiles);
+  }
+
+  renderPerformanceCharts(stats) {
+    // 清空现有图表
+    this.clearCharts();
+
+    // 响应时间趋势图
+    const responseTimeContainer = document.getElementById('responseTimeChart');
+    if (responseTimeContainer && stats.timeline && Object.keys(stats.timeline).length > 0) {
+      responseTimeContainer.innerHTML = '';
+      this.performanceCharts.createResponseTimeChart(responseTimeContainer, stats);
+    }
+
+    // 代理使用分布饼图
+    const proxyUsageContainer = document.getElementById('proxyUsageChart');
+    if (proxyUsageContainer && stats.usage?.proxyUsage && Object.keys(stats.usage.proxyUsage).length > 0) {
+      proxyUsageContainer.innerHTML = '';
+      this.performanceCharts.createProxyUsageChart(proxyUsageContainer, stats);
+    }
+
+    // 请求量统计柱状图
+    const requestVolumeContainer = document.getElementById('requestVolumeChart');
+    if (requestVolumeContainer && stats.timeline && Object.keys(stats.timeline).length > 0) {
+      requestVolumeContainer.innerHTML = '';
+      this.performanceCharts.createRequestVolumeChart(requestVolumeContainer, stats);
+    }
+
+    // 24小时访问热力图
+    const hourlyHeatmapContainer = document.getElementById('hourlyHeatmapChart');
+    if (hourlyHeatmapContainer && stats.usage?.hourlyStats) {
+      hourlyHeatmapContainer.innerHTML = '';
+      this.performanceCharts.createHourlyHeatmap(hourlyHeatmapContainer, stats);
+    }
+
+    // 热门网站排行
+    const domainRankingContainer = document.getElementById('domainRankingChart');
+    if (domainRankingContainer && stats.usage?.domainStats && Object.keys(stats.usage.domainStats).length > 0) {
+      domainRankingContainer.innerHTML = '';
+      this.performanceCharts.createDomainRankingChart(domainRankingContainer, stats);
+    }
+  }
+
+  clearCharts() {
+    const chartContainers = [
+      'responseTimeChart',
+      'proxyUsageChart', 
+      'requestVolumeChart',
+      'hourlyHeatmapChart',
+      'domainRankingChart'
+    ];
+
+    chartContainers.forEach(containerId => {
+      const container = document.getElementById(containerId);
+      if (container) {
+        container.innerHTML = '';
+      }
+    });
+  }
+
+  showEmptyCharts() {
+    const chartContainers = [
+      { id: 'responseTimeChart', title: '响应时间趋势图' },
+      { id: 'proxyUsageChart', title: '代理使用分布' },
+      { id: 'requestVolumeChart', title: '请求量统计' },
+      { id: 'hourlyHeatmapChart', title: '24小时访问热力图' },
+      { id: 'domainRankingChart', title: '热门网站排行' }
+    ];
+
+    chartContainers.forEach(chart => {
+      const container = document.getElementById(chart.id);
+      if (container) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📊</div>
+            <h4>暂无数据</h4>
+            <p>启用性能监控后，这里将显示${chart.title}</p>
+          </div>
+        `;
+      }
+    });
+  }
+
+  async exportPerformanceData() {
+    try {
+      if (!this.performanceMonitor) {
+        this.showToast('性能监控未初始化', 'error');
+        return;
+      }
+
+      // 获取时间范围
+      const timeRange = parseInt(document.getElementById('statsTimeRange')?.value || '7');
+      const endDate = new Date();
+      const startDate = new Date(endDate.getTime() - timeRange * 24 * 60 * 60 * 1000);
+
+      // 导出数据
+      const exportData = await this.performanceMonitor.exportData({
+        startDate,
+        endDate,
+        format: 'json'
+      });
+
+      // 创建下载链接
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+        type: 'application/json'
+      });
+      
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `proxymaster-performance-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      this.showToast('性能数据导出成功', 'success');
+
+    } catch (error) {
+      console.error('Failed to export performance data:', error);
+      this.showToast('导出性能数据失败', 'error');
     }
   }
 }

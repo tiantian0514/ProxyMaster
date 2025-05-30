@@ -432,6 +432,12 @@ class PopupManager {
   }
 
   showAbout() {
+    // 先移除可能存在的旧弹窗
+    const existingModal = document.getElementById('aboutModal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+    
     const aboutHtml = `
       <div style="
         position: fixed;
@@ -454,13 +460,13 @@ class PopupManager {
         ">
           <h3 style="margin-bottom: 16px; color: #333;">ProxyMaster</h3>
           <p style="margin-bottom: 12px; font-size: 14px; color: #666;">
-            ${i18n('version')} 1.0.0
+            ${i18n('version')} ${chrome.runtime.getManifest().version}
           </p>
           <p style="margin-bottom: 16px; font-size: 12px; color: #999;">
             ${i18n('moreFeatures')}<br>
             ${i18n('supportFeatures')}
           </p>
-          <button onclick="document.getElementById('aboutModal').remove()" style="
+          <button id="aboutConfirmBtn" style="
             background: #667eea;
             color: white;
             border: none;
@@ -473,6 +479,37 @@ class PopupManager {
     `;
     
     document.body.insertAdjacentHTML('beforeend', aboutHtml);
+    
+    // 添加事件监听器
+    const modal = document.getElementById('aboutModal');
+    const confirmBtn = document.getElementById('aboutConfirmBtn');
+    const modalContent = modal.querySelector('div[style*="background: white"]');
+    
+    // 点击确定按钮关闭
+    confirmBtn.addEventListener('click', () => {
+      modal.remove();
+    });
+    
+    // 阻止内容区域的点击事件冒泡
+    modalContent.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+    
+    // 点击背景关闭
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+    
+    // ESC键关闭
+    const handleKeydown = (e) => {
+      if (e.key === 'Escape') {
+        modal.remove();
+        document.removeEventListener('keydown', handleKeydown);
+      }
+    };
+    document.addEventListener('keydown', handleKeydown);
   }
 }
 

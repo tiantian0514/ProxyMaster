@@ -563,7 +563,16 @@ class V2RaySubscriptionManager {
   // 辅助方法
   extractDomainFromUrl(url) {
     try {
-      return new URL(url).hostname;
+      if (!url) return 'Unknown';
+      const urlObj = new URL(url);
+      let hostname = urlObj.hostname;
+      
+      // 统一处理www前缀：www.example.com 和 example.com 视为同一域名
+      if (hostname.startsWith('www.')) {
+        hostname = hostname.substring(4);
+      }
+      
+      return hostname;
     } catch {
       return 'Unknown';
     }
