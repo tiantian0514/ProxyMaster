@@ -91,36 +91,9 @@ class ProxyManager {
   }
 
   async warmupProxyConnections() {
-    console.log('🔥 Warming up proxy connections...');
-    
-    // 异步预热，不阻塞主流程
-    setTimeout(async () => {
-      for (const [profileName, profile] of this.profiles) {
-        if (profileName !== 'direct' && profile.host && profile.port) {
-          try {
-            console.log(`🌡️ Warming up proxy: ${profileName}`);
-            
-            // 简单的连接测试：尝试建立TCP连接
-            const testUrl = `http://${profile.host}:${profile.port}`;
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒超时
-            
-            await fetch(testUrl, {
-              method: 'HEAD',
-              signal: controller.signal
-            }).catch(() => {
-              // 忽略错误，这只是预热
-            });
-            
-            clearTimeout(timeoutId);
-            console.log(`✅ Proxy ${profileName} warmed up`);
-          } catch (error) {
-            console.log(`⚠️ Proxy ${profileName} warmup failed:`, error.message);
-          }
-        }
-      }
-      console.log('🔥 Proxy warmup completed');
-    }, 1000); // 延迟1秒开始预热，避免影响启动速度
+    // 预热连接被移除以符合Chrome Web Store审核要求
+    // 用户首次使用代理时可能会有轻微延迟
+    console.log('🔥 Proxy warmup skipped for store compliance');
   }
 
   async waitForProxySwitch(targetProfile, maxWaitTime = 3000) {
@@ -289,62 +262,6 @@ class ProxyManager {
     chrome.tabs.onRemoved.addListener((tabId) => {
       this.tabStates.delete(tabId);
       console.log(`Tab ${tabId} closed, state cleaned up`);
-    });
-
-    // 监听网络请求 - 用于性能统计
-    chrome.webRequest.onBeforeRequest.addListener(
-      (details) => this.handleWebRequest(details),
-      { urls: ['<all_urls>'] }
-    );
-
-    // 监听请求完成 - 记录性能数据
-    chrome.webRequest.onCompleted.addListener(
-      (details) => this.recordRequest(details),
-      { urls: ['<all_urls>'] }
-    );
-
-    // 监听请求错误 - 记录失败数据
-    chrome.webRequest.onErrorOccurred.addListener(
-      (details) => this.recordRequest({ ...details, error: { message: details.error } }),
-      { urls: ['<all_urls>'] }
-    );
-
-    // 使用导航监听作为主要拦截点
-    chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
-      if (details.frameId === 0 && this.shouldInterceptUrl(details.url)) {
-        console.log(`🚦 Navigation intercepted (onBeforeNavigate): Tab ${details.tabId} → ${details.url}`);
-        console.log(`🔍 Navigation details:`, details);
-        
-        // 检查是否是由我们的重定向引起的导航
-        const tabState = this.tabStates.get(details.tabId);
-        const isRedirectNavigation = tabState && 
-                                   tabState.lastProcessedUrl === details.url && 
-                                   (Date.now() - tabState.timestamp) < 5000; // 5秒内的重复导航视为重定向
-        
-        if (isRedirectNavigation) {
-          console.log(`🔄 Skipping redirect navigation: ${details.url}`);
-          return;
-        }
-        
-        await this.handleNavigationIntercept(details.tabId, details.url);
-      }
-    });
-
-    // 备用拦截点：onCommitted
-    chrome.webNavigation.onCommitted.addListener(async (details) => {
-      if (details.frameId === 0 && this.shouldInterceptUrl(details.url)) {
-        console.log(`🚦 Navigation committed (onCommitted): Tab ${details.tabId} → ${details.url}`);
-        
-        // 只在onBeforeNavigate没有处理的情况下处理
-        const tabState = this.tabStates.get(details.tabId);
-        if (!tabState || tabState.lastProcessedUrl !== details.url) {
-          console.log(`🔄 Processing navigation in onCommitted as backup`);
-          await this.handleNavigationIntercept(details.tabId, details.url);
-        }
-        
-        // 记录用户的页面导航（用于热门网站统计）
-        this.recordPageNavigation(details);
-      }
     });
 
     // 监听扩展消息
@@ -910,21 +827,6 @@ class ProxyManager {
     console.log(`Badge updated: ${profileName} -> ${badgeText}`);
   }
 
-  async handleWebRequest(details) {
-    // 记录性能统计
-    const hostname = new URL(details.url).hostname;
-    if (!this.performanceStats.has(hostname)) {
-      this.performanceStats.set(hostname, {
-        requests: 0,
-        totalTime: 0,
-        errors: 0
-      });
-    }
-    
-    const stats = this.performanceStats.get(hostname);
-    stats.requests++;
-  }
-
   async handleMessage(message, sender, sendResponse) {
     try {
       switch (message.action) {
@@ -1174,125 +1076,37 @@ class ProxyManager {
   // ==================== 性能监控功能 ====================
   
   async initPerformanceMonitor() {
-    try {
-      // 在service worker中，我们需要直接实例化类
-      // 性能监控器类已经在performance-monitor.js中定义
-      if (typeof PerformanceMonitor !== 'undefined') {
-        this.performanceMonitor = new PerformanceMonitor();
-        console.log('🔍 Performance monitor initialized');
-      } else {
-        console.warn('PerformanceMonitor class not available');
-      }
-    } catch (error) {
-      console.warn('Failed to initialize performance monitor:', error);
-    }
+    // 性能监控功能已移除以符合Chrome Web Store审核要求
+    console.log('Performance monitoring disabled for store compliance');
   }
 
   recordProxySwitch(fromProxy, toProxy, reason = 'manual', url = null, tabId = null) {
-    if (!this.performanceMonitor) return;
-    
-    const switchData = {
-      fromProxy: fromProxy || 'direct',
-      toProxy: toProxy || 'direct',
-      reason: reason, // manual, auto, rule
-      url: url,
-      tabId: tabId,
-      switchTime: Date.now()
-    };
-    
-    this.performanceMonitor.recordProxySwitch(switchData);
-    console.log('📊 Recorded proxy switch:', switchData);
+    // 性能记录功能已移除以符合Chrome Web Store审核要求
+    console.log(`Proxy switched: ${fromProxy} -> ${toProxy} (${reason})`);
   }
 
   recordConnectionTest(proxy, testUrl, responseTime, success, error = null) {
-    if (!this.performanceMonitor) return;
-    
-    const testData = {
-      proxy: proxy,
-      testUrl: testUrl,
-      responseTime: responseTime,
-      success: success,
-      errorCode: error?.code || null,
-      errorMessage: error?.message || null
-    };
-    
-    this.performanceMonitor.recordConnectionTest(testData);
-    console.log('📊 Recorded connection test:', testData);
+    // 连接测试记录功能已移除以符合Chrome Web Store审核要求
+    console.log(`Connection test: ${proxy} -> ${success ? 'success' : 'failed'}`);
   }
 
   recordPageNavigation(details) {
-    if (!this.performanceMonitor) return;
-    
-    // 添加详细的调试信息
-    console.log('🔍 recordPageNavigation called with details:', {
-      url: details.url,
-      tabId: details.tabId,
-      transitionType: details.transitionType,
-      transitionQualifiers: details.transitionQualifiers,
-      frameId: details.frameId,
-      timeStamp: details.timeStamp
-    });
-    
-    // 记录用户的页面导航（主框架导航，即用户主动访问的页面）
-    const navigationData = {
-      url: details.url,
-      method: 'GET', // 导航通常是GET请求
-      responseTime: 0, // 导航事件中没有响应时间信息
-      success: true, // 导航事件触发说明至少开始加载了
-      errorCode: null,
-      errorMessage: null,
-      userAgent: '', // 导航事件中没有用户代理信息
-      tabId: details.tabId,
-      navigationType: details.transitionType || 'unknown', // 导航类型：typed, link, reload等
-      isUserInitiated: this.isUserInitiatedNavigation(details.transitionType)
-    };
-    
-    this.performanceMonitor.recordRequest(navigationData);
-    console.log('📊 Recorded page navigation:', navigationData);
+    // 页面导航记录功能已移除以符合Chrome Web Store审核要求
+    console.log(`Navigation recorded: ${details.url}`);
   }
 
-  // 判断是否为用户主动发起的导航
   isUserInitiatedNavigation(transitionType) {
-    // 用户主动发起的导航类型
-    const userInitiatedTypes = [
-      'typed',        // 用户在地址栏输入
-      'generated',    // 用户点击链接
-      'keyword',      // 搜索关键词
-      'keyword_generated', // 搜索结果
-      'reload',       // 用户刷新页面
-      'form_submit'   // 表单提交
-    ];
-    
-    return userInitiatedTypes.includes(transitionType);
+    // 简化实现，避免过度分析用户行为
+    return true;
   }
 
   recordRequest(details) {
-    if (!this.performanceMonitor) return;
-    
-    // 只记录主要的HTTP请求，过滤掉资源文件
-    if (!this.shouldRecordRequest(details)) return;
-    
-    const requestData = {
-      url: details.url,
-      method: details.method || 'GET',
-      responseTime: details.timeStamp ? (Date.now() - details.timeStamp) : 0,
-      success: !details.error && (!details.statusCode || details.statusCode < 400),
-      errorCode: details.error?.code || (details.statusCode >= 400 ? details.statusCode : null),
-      errorMessage: details.error?.message || null,
-      userAgent: details.requestHeaders?.find(h => h.name.toLowerCase() === 'user-agent')?.value || '',
-      tabId: details.tabId || null
-    };
-    
-    this.performanceMonitor.recordRequest(requestData);
+    // 请求记录功能已移除以符合Chrome Web Store审核要求
   }
 
   shouldRecordRequest(details) {
-    // 只记录用户主动访问的页面，即主框架请求
-    if (!details.url.startsWith('http')) return false;
-    
-    // 只记录主框架请求（用户在地址栏输入或点击链接导航的页面）
-    // 不记录子框架、XHR、资源文件等
-    return details.type === 'main_frame';
+    // 请求记录功能已移除
+    return false;
   }
 }
 

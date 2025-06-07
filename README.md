@@ -1,5 +1,34 @@
 # ProxyMaster - 智能代理管理器
 
+## Chrome Web Store 上架说明
+
+ProxyMaster是一个专业的代理服务器管理工具，专为需要使用代理服务器的用户设计。本扩展严格遵守Chrome Web Store政策，不包含任何恶意代码或隐私侵犯功能。
+
+### 核心功能
+- **代理配置管理**：支持HTTP、HTTPS、SOCKS4、SOCKS5代理协议
+- **智能切换**：基于用户定义的规则自动切换代理
+- **一键切换**：通过弹窗快速切换代理配置
+- **右键菜单**：便捷的网站代理管理
+- **配置导入导出**：方便备份和分享配置
+
+### 权限说明
+- `proxy`：管理浏览器代理设置（核心功能）
+- `storage`：存储用户的代理配置和规则
+- `activeTab`：获取当前标签页信息用于智能切换
+- `contextMenus`：提供右键菜单功能
+- `notifications`：显示代理切换通知
+- `<all_urls>`：为所有网站提供代理功能
+
+### 隐私保护
+- 所有数据本地存储，不上传到任何服务器
+- 不收集用户个人信息或浏览历史
+- 开源代码，接受社区审查
+- 完整的隐私政策说明
+
+---
+
+## 功能介绍
+
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Available-brightgreen)](https://chrome.google.com/webstore)
 [![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/tiantian0514/ProxyMaster/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)

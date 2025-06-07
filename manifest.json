@@ -9,12 +9,14 @@
     "proxy",
     "storage",
     "activeTab",
-    "tabs",
-    "scripting",
-    "webRequest",
-    "webNavigation",
     "contextMenus",
     "notifications"
+  ],
+  
+  "optional_permissions": [
+    "tabs",
+    "webRequest",
+    "webNavigation"
   ],
   
   "host_permissions": [
@@ -37,21 +39,6 @@
   },
   
   "options_page": "options.html",
-  
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "run_at": "document_start"
-    }
-  ],
-  
-  "web_accessible_resources": [
-    {
-      "resources": ["inject.js"],
-      "matches": ["<all_urls>"]
-    }
-  ],
   
   "icons": {
     "16": "icons/icon16.png",
